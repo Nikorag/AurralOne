@@ -33,6 +33,8 @@ export interface HttpOptions {
   bodyTimeoutMs?: number;
   signal?: AbortSignal;
   responseType?: "buffer";
+  maxBytes?: number;
+  consume?: (body: ReadableStream<Uint8Array>) => Promise<unknown>;
   okStatus?: (status: number) => boolean;
   insecureTls?: boolean;
   publicOnly?: boolean;
@@ -164,7 +166,32 @@ function resolveDispatcher(options: HttpOptions) {
   return defaultDispatcher;
 }
 
+async function readLimited(response: FetchResponse, maxBytes: number) {
+  const declared = Number(response.headers.get("content-length"));
+  if (declared > maxBytes) throw new Error(`Response is larger than ${maxBytes} bytes`);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const reader = (response.body as ReadableStream<Uint8Array> | null)?.getReader();
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`Response is larger than ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function readBody(response: FetchResponse, options: HttpOptions) {
+  if (options.consume) {
+    return response.body ? options.consume(response.body as ReadableStream<Uint8Array>) : null;
+  }
+  if (options.maxBytes != null && options.responseType === "buffer") {
+    return readLimited(response, options.maxBytes);
+  }
   if (options.responseType === "buffer") {
     return Buffer.from(await response.arrayBuffer());
   }
