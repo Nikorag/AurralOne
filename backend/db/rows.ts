@@ -142,6 +142,10 @@ export interface DownloadProviderWorkRow {
   created_at: number;
 }
 
+export interface ForkMigrationsRow {
+  name: string | null;
+}
+
 export interface HistoryServersRow {
   user_id: number;
   provider: string;
