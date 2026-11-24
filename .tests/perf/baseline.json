@@ -15,6 +15,14 @@
     "bytes": 175042,
     "scans": []
   },
+  "podcasts home": {
+    "queries": {
+      "cold": 17,
+      "warm": 17
+    },
+    "bytes": 808,
+    "scans": []
+  },
   "library albums": {
     "queries": {
       "cold": 20,
