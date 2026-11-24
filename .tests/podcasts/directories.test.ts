@@ -52,6 +52,15 @@ test("iTunes results are normalised and feedless ones are dropped", async () => 
   ]);
 });
 
+test("Apple's JSON arrives as text because it is served as text/javascript", async () => {
+  vi.spyOn(http, "get").mockResolvedValue(reply(JSON.stringify(itunesSearch)));
+  const results = await directories.searchPodcasts("served-as-text");
+  assert.deepEqual(
+    results.map((podcast) => podcast.title),
+    ["Shared Show"],
+  );
+});
+
 test("Podcast Index is only used once configured, and signs each request", async () => {
   const get = vi.spyOn(http, "get").mockImplementation((url) =>
     Promise.resolve(

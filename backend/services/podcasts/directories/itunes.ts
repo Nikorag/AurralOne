@@ -53,8 +53,10 @@ const cached = async (key: string, load: () => Promise<DirectoryPodcast[]>) => {
   return loaded;
 };
 
-const json = async (url: string, query?: Record<string, string | number>) =>
-  (await http.get(url, { query, timeoutMs: 10_000 })).data;
+const json = async (url: string, query?: Record<string, string | number>) => {
+  const { data } = await http.get(url, { query, timeoutMs: 10_000 });
+  return typeof data === "string" ? (JSON.parse(data) as unknown) : data;
+};
 
 export const itunes: PodcastDirectory = {
   id: "itunes",
