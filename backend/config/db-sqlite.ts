@@ -5,6 +5,7 @@ import { SCHEMA_VERSION, missingUpgradeSteps } from "./upgrade-gate.ts";
 import { migrateToJobQueue } from "./job-queue-migration.ts";
 import { convertLidarrLibrary } from "./lidarr-conversion.ts";
 import { migrate } from "./migrations.ts";
+import { migrateFork } from "./forkMigrations.ts";
 import { initializeLibrarySearchIndex } from "./library-search-index.ts";
 import { initializeLibraryGenreIndex } from "./library-genre-index.ts";
 import { syncDownloadFolderPath } from "../services/downloadFolderConfig.ts";
@@ -121,6 +122,7 @@ function prepareDatabase() {
     process.exit(1);
   }
   migrate(db);
+  migrateFork(db);
 
   db.exec(`
     DELETE FROM settings WHERE key LIKE 'activeDownloadAttempt:%'
