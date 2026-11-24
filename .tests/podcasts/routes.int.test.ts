@@ -19,13 +19,22 @@ const [isolatedState, { db }, { userOps, dbOps }] = await setupIsolatedBackend(
 let server: Awaited<ReturnType<typeof startServerProcess>>;
 const tokens: Record<string, string> = {};
 
+const dig = (value: unknown, ...path: string[]): unknown =>
+  path.reduce<unknown>(
+    (current, key) =>
+      current && typeof current === "object"
+        ? (current as Record<string, unknown>)[key]
+        : undefined,
+    value,
+  );
+
 async function login(username: string) {
   const response = await fetch(`http://127.0.0.1:${server.port}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password: "password123" }),
   });
-  return (await response.json()).token as string;
+  return String(dig(await response.json(), "token"));
 }
 
 async function call(user: string, route: string, init: RequestInit = {}) {
@@ -37,7 +46,8 @@ async function call(user: string, route: string, init: RequestInit = {}) {
     },
   });
   const text = await response.text();
-  return { status: response.status, body: text.startsWith("{") ? JSON.parse(text) : text };
+  const body: unknown = text.startsWith("{") ? JSON.parse(text) : text;
+  return { status: response.status, body };
 }
 
 beforeAll(async () => {
@@ -82,7 +92,7 @@ test("feeds on private addresses are refused with a useful message", async () =>
       body: JSON.stringify({ feedUrl }),
     });
     assert.equal(result.status, 422, feedUrl);
-    assert.equal(result.body.error, "Couldn't add this feed");
+    assert.equal(dig(result.body, "error"), "Couldn't add this feed");
   }
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM podcasts").get() as { n: number }).n, 1);
 });
@@ -98,17 +108,29 @@ test("two users follow the same show with their own settings and progress", asyn
 
   const ann = await call("ann", "/1");
   const ben = await call("ben", "/1");
-  assert.equal(ann.body.podcast.follow.keepLatest, 1);
-  assert.equal(ben.body.podcast.follow.keepLatest, 5);
-  assert.equal((await call("ann", "/episodes/1")).body.episode.progress.positionSeconds, 42);
-  assert.equal((await call("ben", "/episodes/1")).body.episode.progress.positionSeconds, 0);
-  assert.equal((await call("ben", "/history")).body.episodes.length, 0);
+  assert.equal(dig(ann.body, "podcast", "follow", "keepLatest"), 1);
+  assert.equal(dig(ben.body, "podcast", "follow", "keepLatest"), 5);
+  assert.equal(
+    dig((await call("ann", "/episodes/1")).body, "episode", "progress", "positionSeconds"),
+    42,
+  );
+  assert.equal(
+    dig((await call("ben", "/episodes/1")).body, "episode", "progress", "positionSeconds"),
+    0,
+  );
+  assert.equal(dig((await call("ben", "/history")).body, "episodes", "length"), 0);
 
   await call("ann", "/1/follow", { method: "DELETE" });
-  assert.equal((await call("ann", "/episodes/1")).body.episode.progress.positionSeconds, 42);
-  assert.equal((await call("ben", "/1")).body.podcast.follow.keepLatest, 5);
+  assert.equal(
+    dig((await call("ann", "/episodes/1")).body, "episode", "progress", "positionSeconds"),
+    42,
+  );
+  assert.equal(dig((await call("ben", "/1")).body, "podcast", "follow", "keepLatest"), 5);
   await call("ann", "/1/follow?removeHistory=true", { method: "DELETE" });
-  assert.equal((await call("ann", "/episodes/1")).body.episode.progress.positionSeconds, 0);
+  assert.equal(
+    dig((await call("ann", "/episodes/1")).body, "episode", "progress", "positionSeconds"),
+    0,
+  );
 });
 
 test("a downloaded file is only served to a user who keeps that episode", async () => {
@@ -127,8 +149,14 @@ test("a downloaded file is only served to a user who keeps that episode", async 
   const mine = await call("ann", "/episodes/1/audio");
   assert.equal(mine.status, 200);
   assert.equal((await call("ben", "/episodes/1/audio")).status, 404);
-  assert.equal((await call("ben", "/episodes/1")).body.episode.download.state, "feed");
-  assert.equal((await call("ann", "/episodes/1")).body.episode.download.state, "downloaded");
+  assert.equal(
+    dig((await call("ben", "/episodes/1")).body, "episode", "download", "state"),
+    "feed",
+  );
+  assert.equal(
+    dig((await call("ann", "/episodes/1")).body, "episode", "download", "state"),
+    "downloaded",
+  );
 
   await call("ann", "/episodes/1/download", { method: "DELETE" });
   assert.equal((await call("ann", "/episodes/1/audio")).status, 404);
@@ -154,9 +182,9 @@ test("podcast administration is for admins, and the limit is configurable", asyn
     }),
   });
   assert.equal(saved.status, 200);
-  assert.equal(saved.body.storage.limitBytes, 5_000_000_000);
-  assert.equal(saved.body.settings.hasPodcastIndexSecret, true);
+  assert.equal(dig(saved.body, "storage", "limitBytes"), 5_000_000_000);
+  assert.equal(dig(saved.body, "settings", "hasPodcastIndexSecret"), true);
   assert.equal(JSON.stringify(saved.body).includes('"s"'), false);
   const status = await call("admin", "/admin/status");
-  assert.equal(status.body.totals.podcasts, 1);
+  assert.equal(dig(status.body, "totals", "podcasts"), 1);
 });

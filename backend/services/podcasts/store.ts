@@ -1,11 +1,13 @@
 import { db } from "../../config/db-sqlite.ts";
 import type { PodcastEpisodesRow, PodcastsRow } from "../../db/rows.ts";
 import { fetchPodcastFeed, type ParsedPodcast } from "./feed.ts";
+import { getPodcastSettings } from "./settings.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-const REFRESH_INTERVAL_MS = 2 * HOUR;
 const MAX_BACKOFF_MS = 24 * HOUR;
+
+const refreshInterval = () => getPodcastSettings().refreshIntervalMinutes * MINUTE;
 
 export const normalizeFeedUrl = (value: string) => {
   const url = new URL(value.trim().replace(/^feed:\/\//i, "https://"));
@@ -186,7 +188,7 @@ const storeFeed = db.transaction(
 );
 
 const retryDelay = (failures: number) =>
-  Math.min(MAX_BACKOFF_MS, REFRESH_INTERVAL_MS * 2 ** Math.min(failures, 6));
+  Math.min(MAX_BACKOFF_MS, refreshInterval() * 2 ** Math.min(failures, 6));
 
 export async function importPodcastFeed(rawUrl: string, provider?: { name: string; id: string }) {
   const feedUrl = normalizeFeedUrl(rawUrl);
@@ -199,7 +201,7 @@ export async function importPodcastFeed(rawUrl: string, provider?: { name: strin
     now,
     result.etag,
     result.lastModified,
-    now + REFRESH_INTERVAL_MS,
+    now + refreshInterval(),
     stored.podcastId,
   );
   return stored;
@@ -220,7 +222,7 @@ export async function refreshPodcast(podcastId: number) {
         now,
         source.etag,
         source.last_modified,
-        now + REFRESH_INTERVAL_MS,
+        now + refreshInterval(),
         podcastId,
       );
       return { newEpisodeIds: [] as number[] };
@@ -231,7 +233,7 @@ export async function refreshPodcast(podcastId: number) {
       now,
       result.etag,
       result.lastModified,
-      now + REFRESH_INTERVAL_MS,
+      now + refreshInterval(),
       podcastId,
     );
     return { newEpisodeIds: stored.newEpisodeIds };

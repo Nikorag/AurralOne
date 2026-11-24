@@ -18,6 +18,7 @@ import {
   Sparkles,
   Library,
   Activity,
+  Mic,
   Ellipsis,
   Ticket,
   Workflow,
@@ -28,6 +29,8 @@ import {
 import Sidebar from "./Sidebar";
 import GlobalSearch from "./GlobalSearch";
 import GlobalPlayerBar from "./GlobalPlayerBar";
+import { PodcastPlayerBar } from "./podcasts/PodcastPlayerBar";
+import { usePodcastPlayer } from "../contexts/podcastPlayerContext";
 import { PlayerRail, usePlayerRail } from "./PlayerQueue";
 import UserProfileMenu from "./UserProfileMenu";
 import InboxMenu from "./InboxMenu";
@@ -120,7 +123,9 @@ function Layout({ children, headerActions }: LayoutProps) {
   const { isDiscoverSectionActive } = useDiscoverRecent();
   const sectionBarRef = useRef<HTMLElement>(null);
   const { authRequired, canLogOut, logout, user, bootstrap } = useAuth();
-  const { isActive: isPlayerActive } = useAudioQueue();
+  const { isActive: isMusicActive } = useAudioQueue();
+  const { showBar: showPodcastPlayer } = usePodcastPlayer();
+  const isPlayerActive = isMusicActive || showPodcastPlayer;
   const isArtistDetailsRoute = /^\/artist\/[^/]+(\/(albums|appears-on))?$/.test(location.pathname);
   const settingsOpen = readSettingsPath(location.search) !== null;
   const pageSearch = withoutSettingsParam(location.search);
@@ -172,6 +177,9 @@ function Layout({ children, headerActions }: LayoutProps) {
       if (path === "/") {
         return isDiscoverSectionActive || location.pathname === "/discover/news";
       }
+      if (path.startsWith("/podcasts")) {
+        return location.pathname.startsWith("/podcasts");
+      }
       if (path.startsWith("/shows")) {
         return location.pathname.startsWith("/shows");
       }
@@ -192,6 +200,7 @@ function Layout({ children, headerActions }: LayoutProps) {
   const mobilePrimaryItems = [
     { path: "/", label: "Discover", icon: Sparkles },
     { path: "/library", label: "Library", icon: Library },
+    { path: "/podcasts", label: "Podcasts", icon: Mic },
     { path: "/activity/queue", label: "Activity", icon: Activity },
   ];
 
@@ -484,7 +493,7 @@ function Layout({ children, headerActions }: LayoutProps) {
       className="app-shell"
       data-sidebar-mode={sidebarMode}
       data-resizing={isResizing || undefined}
-      data-player-docked={!playerMinimized || undefined}
+      data-player-docked={!playerMinimized || showPodcastPlayer || undefined}
       style={{
         "--sidebar-width": `${sidebarWidth}px`,
       }}
@@ -621,11 +630,15 @@ function Layout({ children, headerActions }: LayoutProps) {
           {hasRail ? <PlayerRail rail={rail} /> : null}
         </div>
 
-        <GlobalPlayerBar
-          minimized={playerMinimized}
-          onMinimizedChange={changePlayerMinimized}
-          rail={rail}
-        />
+        {showPodcastPlayer ? (
+          <PodcastPlayerBar />
+        ) : (
+          <GlobalPlayerBar
+            minimized={playerMinimized}
+            onMinimizedChange={changePlayerMinimized}
+            rail={rail}
+          />
+        )}
 
         {mobileMenuPresence !== "closed" && (
           <div

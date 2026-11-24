@@ -82,7 +82,10 @@ export const toEpisode = (row: EpisodeRow) => {
     imageUrl: row.image_url ?? row.podcast_image_url,
     season: row.season,
     episodeNumber: row.episode_number,
-    audioUrl: state === "downloaded" ? `/api/podcasts/episodes/${row.id}/audio` : row.enclosure_url,
+    audioUrl:
+      state === "downloaded"
+        ? `/api/podcasts/episodes/${row.id}/audio`
+        : row.enclosure_url.replace(/^http:\/\//i, "https://"),
     download: { state, bytes: state === "downloaded" ? row.media_bytes : null },
     progress: {
       positionSeconds: row.position_seconds ?? 0,
