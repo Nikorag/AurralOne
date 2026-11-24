@@ -61,3 +61,17 @@ export const DOWNLOAD_LABELS = {
   failed: "Download failed",
   awaiting_storage: "Waiting for storage",
 } as const;
+
+export function describeProgress(
+  progress:
+    | { bytes: number; totalBytes: number | null; fraction: number | null }
+    | null
+    | undefined,
+) {
+  if (!progress) return "";
+  const percent = progress.fraction === null ? null : Math.round(progress.fraction * 100);
+  const size = progress.totalBytes
+    ? `${formatBytes(progress.bytes)} of ${formatBytes(progress.totalBytes)}`
+    : formatBytes(progress.bytes);
+  return percent === null ? size : `${size} · ${percent}%`;
+}

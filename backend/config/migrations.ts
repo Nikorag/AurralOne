@@ -593,6 +593,18 @@ const createPodcasts: Migration = (db) =>
       ON podcast_history(user_id, listened_at DESC);
   `);
 
+const addColumn = (db: Database.Database, table: string, column: string, type: string) => {
+  const exists = db
+    .prepare<[string, string]>("SELECT 1 FROM pragma_table_info(?) WHERE name = ?")
+    .get(table, column);
+  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+};
+
+const trackPodcastDownloadProgress: Migration = (db) => {
+  addColumn(db, "podcast_media", "progress_bytes", "INTEGER");
+  addColumn(db, "podcast_media", "total_bytes", "INTEGER");
+};
+
 export const migrations: Migration[] = [
   createAurral3Schema,
   indexFinishedDownloadNames,
@@ -628,6 +640,7 @@ export const migrations: Migration[] = [
   renameDiscoverySourceLabels,
   clearReleaseGroupsStoredAsReleases,
   createPodcasts,
+  trackPodcastDownloadProgress,
 ];
 
 export function migrate(db: Database.Database, steps: readonly Migration[] = migrations) {

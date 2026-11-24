@@ -559,6 +559,8 @@ export interface PodcastMediaRow {
   attempts: number;
   updated_at: number;
   downloaded_at: number | null;
+  progress_bytes: number | null;
+  total_bytes: number | null;
 }
 
 export interface PodcastProgressRow {

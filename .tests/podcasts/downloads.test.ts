@@ -77,6 +77,45 @@ afterAll(async () => {
   await cleanupIsolatedState(isolatedState);
 });
 
+test("progress is recorded while an episode downloads and cleared when it finishes", async () => {
+  addEpisode(1);
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const first = audio(1500);
+  const second = Buffer.alloc(500, 2);
+  vi.spyOn(http, "get").mockImplementation(async (_url, options) => {
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(new Uint8Array(first));
+        await gate;
+        controller.enqueue(new Uint8Array(second));
+        controller.close();
+      },
+    });
+    const data = await options?.consume?.(stream, new Headers({ "content-length": "2000" }));
+    return { status: 200, statusText: "", headers: { "content-type": "audio/mpeg" }, data };
+  });
+
+  const finished = downloads.downloadEpisode(1);
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const row = db.prepare("SELECT progress_bytes AS p FROM podcast_media").get() as {
+      p: number | null;
+    };
+    if (row.p) break;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  const during = db
+    .prepare("SELECT status, progress_bytes AS p, total_bytes AS t FROM podcast_media")
+    .get();
+  assert.deepEqual(during, { status: "downloading", p: 1500, t: 2000 });
+  release();
+  assert.equal(await finished, "downloaded");
+  const after = db.prepare("SELECT progress_bytes AS p, total_bytes AS t FROM podcast_media").get();
+  assert.deepEqual(after, { p: null, t: null });
+});
+
 test("two simultaneous downloads of one episode fetch and store it once", async () => {
   addEpisode(1);
   const get = serve(audio(2000));

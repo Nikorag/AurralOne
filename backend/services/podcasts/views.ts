@@ -31,6 +31,8 @@ interface EpisodeRow {
   last_listened_at: number | null;
   media_status: string | null;
   media_bytes: number | null;
+  progress_bytes: number | null;
+  total_bytes: number | null;
   entitlement: string | null;
 }
 
@@ -49,7 +51,8 @@ const SELECT = `
     e.season, e.episode_number,
     g.position_seconds, g.duration_seconds AS progress_duration, g.played,
     g.updated_at AS progress_updated_at, g.last_listened_at,
-    m.status AS media_status, m.bytes AS media_bytes, n.reason AS entitlement
+    m.status AS media_status, m.bytes AS media_bytes,
+    m.progress_bytes, m.total_bytes, n.reason AS entitlement
   FROM podcast_episodes e
   JOIN podcasts p ON p.id = e.podcast_id
   LEFT JOIN podcast_progress g ON g.episode_id = e.id AND g.user_id = @user
@@ -63,6 +66,11 @@ const FILTER_SQL: Record<EpisodeFilter, string> = {
   in_progress: "COALESCE(g.played, 0) = 0 AND COALESCE(g.position_seconds, 0) > 0",
   downloaded: "n.episode_id IS NOT NULL AND m.status = 'downloaded'",
 };
+
+const downloadProgress = (done: number | null, total: number | null) =>
+  done === null
+    ? null
+    : { bytes: done, totalBytes: total, fraction: total ? Math.min(1, done / total) : null };
 
 const downloadState = (row: EpisodeRow): DownloadState => {
   if (!row.entitlement || !row.media_status) return "feed";
@@ -86,7 +94,12 @@ export const toEpisode = (row: EpisodeRow) => {
       state === "downloaded"
         ? `/api/podcasts/episodes/${row.id}/audio`
         : row.enclosure_url.replace(/^http:\/\//i, "https://"),
-    download: { state, bytes: state === "downloaded" ? row.media_bytes : null },
+    download: {
+      state,
+      bytes: state === "downloaded" ? row.media_bytes : null,
+      progress:
+        state === "downloading" ? downloadProgress(row.progress_bytes, row.total_bytes) : null,
+    },
     progress: {
       positionSeconds: row.position_seconds ?? 0,
       played: row.played === 1,
@@ -326,10 +339,13 @@ export function activeDownloads(userId: number) {
         image_url: string | null;
         status: string;
         error: string | null;
+        progress_bytes: number | null;
+        total_bytes: number | null;
       }
     >(
       `SELECT e.id, e.title, e.podcast_id, p.title AS podcast_title,
-         COALESCE(e.image_url, p.image_url) AS image_url, m.status, m.error
+         COALESCE(e.image_url, p.image_url) AS image_url, m.status, m.error,
+         m.progress_bytes, COALESCE(m.total_bytes, e.enclosure_bytes) AS total_bytes
        FROM podcast_entitlements n
        JOIN podcast_media m ON m.episode_id = n.episode_id
        JOIN podcast_episodes e ON e.id = n.episode_id
@@ -349,5 +365,7 @@ export function activeDownloads(userId: number) {
       imageUrl: row.image_url,
       state: row.status as Exclude<DownloadState, "feed" | "downloaded">,
       error: row.status === "failed" || row.status === "awaiting_storage" ? row.error : null,
+      progress:
+        row.status === "downloading" ? downloadProgress(row.progress_bytes, row.total_bytes) : null,
     }));
 }

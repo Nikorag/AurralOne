@@ -8,6 +8,7 @@ import {
   usePodcastDownloads,
   type PodcastDownload,
 } from "../../hooks/usePodcasts";
+import { describeProgress } from "./podcastFormat";
 import { PodcastArt, podcastPath } from "./podcastUi";
 import "./podcasts.css";
 
@@ -53,6 +54,23 @@ export function PodcastDownloads() {
                 {item.podcastTitle}
               </RouteLink>
               {item.error ? <span className="podcast-download__error">{item.error}</span> : null}
+              {item.progress ? (
+                <>
+                  <span className="podcast-download__show">{describeProgress(item.progress)}</span>
+                  {item.progress.fraction !== null ? (
+                    <span
+                      className="podcast-episode__bar"
+                      role="progressbar"
+                      aria-label="Download progress"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(item.progress.fraction * 100)}
+                    >
+                      <span style={{ width: `${item.progress.fraction * 100}%` }} />
+                    </span>
+                  ) : null}
+                </>
+              ) : null}
             </div>
             <span
               className="podcast-chip"

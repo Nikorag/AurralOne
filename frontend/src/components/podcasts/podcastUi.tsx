@@ -122,7 +122,7 @@ export const directoryCardPodcast = (podcast: DirectoryPodcast): CardPodcast => 
 });
 
 function StateChip({ episode }: { episode: PodcastEpisode }) {
-  const { state, bytes } = episode.download;
+  const { state, bytes, progress } = episode.download;
   const label = DOWNLOAD_LABELS[state];
   if (!label) return null;
   const tone = state === "failed" ? "danger" : state === "awaiting_storage" ? "warning" : "muted";
@@ -134,6 +134,9 @@ function StateChip({ episode }: { episode: PodcastEpisode }) {
       {state === "downloaded" ? <Check aria-hidden="true" /> : null}
       {label}
       {state === "downloaded" && bytes ? ` · ${formatBytes(bytes)}` : ""}
+      {state === "downloading" && progress?.fraction != null
+        ? ` ${Math.round(progress.fraction * 100)}%`
+        : ""}
     </span>
   );
 }

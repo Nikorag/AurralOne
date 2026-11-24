@@ -12,6 +12,7 @@ import { availableBytes, removeUnreferencedMedia } from "./storage.ts";
 
 const MAX_EPISODE_BYTES = 3 * 1024 ** 3;
 const HOUR = 60 * 60_000;
+const PROGRESS_EVERY_MS = 1000;
 
 export const podcastDownloadSchema = v.object({ episodeId: v.number() });
 
@@ -50,17 +51,22 @@ const statements = {
   entitled: db.prepare<[number], { n: number }>(
     "SELECT COUNT(*) AS n FROM podcast_entitlements WHERE episode_id = ?",
   ),
+  progress: db.prepare<[number, number | null, number]>(
+    "UPDATE podcast_media SET progress_bytes = ?, total_bytes = ? WHERE episode_id = ?",
+  ),
   claim: db.prepare<[number, number]>(
     `UPDATE podcast_media SET status = 'downloading', error = NULL, updated_at = ?,
-       attempts = attempts + 1
+       progress_bytes = 0, total_bytes = NULL, attempts = attempts + 1
      WHERE episode_id = ? AND status IN ('pending', 'queued', 'failed', 'awaiting_storage')`,
   ),
   setStatus: db.prepare<[string, string | null, number, number]>(
-    "UPDATE podcast_media SET status = ?, error = ?, updated_at = ? WHERE episode_id = ?",
+    `UPDATE podcast_media SET status = ?, error = ?, updated_at = ?,
+       progress_bytes = NULL, total_bytes = NULL WHERE episode_id = ?`,
   ),
   done: db.prepare<[string, number, string, string, number, number, number]>(
     `UPDATE podcast_media SET status = 'downloaded', path = ?, bytes = ?, content_type = ?,
-       sha256 = ?, error = NULL, updated_at = ?, downloaded_at = ? WHERE episode_id = ?`,
+       sha256 = ?, error = NULL, updated_at = ?, downloaded_at = ?,
+       progress_bytes = NULL, total_bytes = NULL WHERE episode_id = ?`,
   ),
   setSize: db.prepare<[number, number]>(
     "UPDATE podcast_episodes SET enclosure_bytes = ? WHERE id = ?",
@@ -143,7 +149,9 @@ export async function downloadEpisode(episodeId: number, signal?: AbortSignal) {
             ? new StorageFull("Not enough podcast storage")
             : new DownloadRefused("The episode is larger than allowed");
         }
+        const total = declared > 0 ? declared : (episode.enclosure_bytes ?? null);
         let bytes = 0;
+        let reportedAt = 0;
         let head = Buffer.alloc(0);
         const limiter = new Transform({
           transform(chunk: Buffer, _encoding, callback) {
@@ -158,6 +166,11 @@ export async function downloadEpisode(episodeId: number, signal?: AbortSignal) {
               );
             }
             hash.update(chunk);
+            const now = Date.now();
+            if (now - reportedAt >= PROGRESS_EVERY_MS) {
+              reportedAt = now;
+              statements.progress.run(bytes, total, episodeId);
+            }
             callback(null, chunk);
           },
         });
