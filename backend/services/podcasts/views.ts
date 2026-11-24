@@ -182,6 +182,7 @@ interface PodcastRow {
   keep_latest: number | null;
   auto_download: number | null;
   remove_played: number | null;
+  notify: number | null;
   feed_url: string | null;
   last_success_at: number | null;
   last_error: string | null;
@@ -191,7 +192,7 @@ interface PodcastRow {
 
 const PODCAST_SELECT = `
   SELECT p.id, p.title, p.publisher, p.description, p.image_url, p.categories, p.website_url,
-    f.followed_at, f.keep_latest, f.auto_download, f.remove_played,
+    f.followed_at, f.keep_latest, f.auto_download, f.remove_played, f.notify,
     s.feed_url, s.last_success_at, s.last_error,
     (SELECT COUNT(*) FROM podcast_episodes WHERE podcast_id = p.id) AS episode_count,
     (SELECT COUNT(*) FROM (
@@ -233,6 +234,7 @@ const toPodcast = (row: PodcastRow) => ({
           keepLatest: row.keep_latest ?? 5,
           autoDownload: row.auto_download === 1,
           removePlayed: row.remove_played === 1,
+          notify: row.notify === 1,
         },
 });
 

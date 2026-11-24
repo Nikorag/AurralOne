@@ -2,6 +2,7 @@ import * as v from "valibot";
 import { podcastRefreshQueue } from "../jobs/queues.ts";
 import { reconcilePodcast } from "./follows.ts";
 import { queueDownloads, queueWaitingDownloads } from "./downloads.ts";
+import { notifyNewEpisodes } from "./notify.ts";
 import { dueSourceIds, refreshPodcast } from "./store.ts";
 import { reconcileStorage, resetInterruptedDownloads } from "./storage.ts";
 
@@ -11,8 +12,9 @@ export const queueRefresh = (podcastId: number, priority = 0) =>
   podcastRefreshQueue.enqueue({ podcastId }, { dedupeKey: `podcast:${podcastId}`, priority });
 
 export async function refreshAndReconcile(podcastId: number) {
-  await refreshPodcast(podcastId);
+  const { newEpisodeIds } = await refreshPodcast(podcastId);
   queueDownloads(reconcilePodcast(podcastId));
+  notifyNewEpisodes(podcastId, newEpisodeIds);
 }
 
 export function queueDueRefreshes() {

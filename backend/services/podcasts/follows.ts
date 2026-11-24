@@ -5,6 +5,7 @@ export interface FollowSettings {
   keepLatest: number;
   autoDownload: boolean;
   removePlayed: boolean;
+  notify: boolean;
 }
 
 export const MAX_KEEP_LATEST = 200;
@@ -19,8 +20,8 @@ const statements = {
   followers: db.prepare<[number], { user_id: number }>(
     "SELECT user_id FROM podcast_follows WHERE podcast_id = ?",
   ),
-  update: db.prepare<[number, number, number, number, number]>(
-    `UPDATE podcast_follows SET keep_latest = ?, auto_download = ?, remove_played = ?
+  update: db.prepare<[number, number, number, number, number, number]>(
+    `UPDATE podcast_follows SET keep_latest = ?, auto_download = ?, remove_played = ?, notify = ?
      WHERE user_id = ? AND podcast_id = ?`,
   ),
   unfollow: db.prepare<[number, number]>(
@@ -75,6 +76,7 @@ export const followSettings = (row: PodcastFollowsRow): FollowSettings => ({
   keepLatest: row.keep_latest,
   autoDownload: row.auto_download === 1,
   removePlayed: row.remove_played === 1,
+  notify: row.notify === 1,
 });
 
 export const reconcileFollow = db.transaction(
@@ -138,6 +140,7 @@ export const updateFollowSettings = db.transaction(
       keepLatest,
       next.autoDownload ? 1 : 0,
       next.removePlayed ? 1 : 0,
+      next.notify ? 1 : 0,
       userId,
       podcastId,
     );

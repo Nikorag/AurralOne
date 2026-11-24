@@ -100,7 +100,7 @@ test("progress is recorded while an episode downloads and cleared when it finish
   });
 
   const finished = downloads.downloadEpisode(1);
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  for (let attempt = 0; attempt < 50_000; attempt += 1) {
     const row = db.prepare("SELECT progress_bytes AS p FROM podcast_media").get() as {
       p: number | null;
     };

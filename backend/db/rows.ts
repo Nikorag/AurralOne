@@ -540,6 +540,7 @@ export interface PodcastFollowsRow {
   keep_latest: number;
   auto_download: number;
   remove_played: number;
+  notify: number;
 }
 
 export interface PodcastHistoryRow {

@@ -78,6 +78,7 @@ const settingsBody = v.object({
   keepLatest: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(200))),
   autoDownload: v.optional(v.boolean()),
   removePlayed: v.optional(v.boolean()),
+  notify: v.optional(v.boolean()),
 });
 
 const progressBody = v.object({

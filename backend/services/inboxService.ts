@@ -50,6 +50,7 @@ const getEnabledKinds = (preferences: ReturnType<typeof getInboxPreferences>) =>
     recommendedNews: preferences.recommendedNews,
     discovery: preferences.discoveries,
     friend: hubLinksEnabled(),
+    podcast: true,
   })
     .filter(([, enabled]) => enabled)
     .map(([kind]) => kind);

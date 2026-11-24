@@ -38,6 +38,7 @@ const EVENT_LABELS: Record<NotificationEvent, string> = {
   notifyRequestAvailable: "Request available",
   notifyArtistAdded: "Artist added",
   notifyTrackAdded: "Track added",
+  notifyPodcastEpisode: "New podcast episode",
 };
 
 const INBOX_ITEMS = [

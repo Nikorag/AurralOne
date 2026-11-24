@@ -59,6 +59,19 @@ export function PodcastSettingsDialog({
           </div>
           <div className="podcast-settings__row">
             <span>
+              Notify me about new episodes
+              <span className="podcast-settings__help">
+                Adds them to your Inbox, and to any webhook that listens for podcast episodes.
+              </span>
+            </span>
+            <PillToggle
+              aria-label="Notify me about new episodes"
+              checked={follow.notify}
+              onChange={(event) => save({ id: podcast.id, notify: event.target.checked })}
+            />
+          </div>
+          <div className="podcast-settings__row">
+            <span>
               Keep the latest
               <span className="podcast-settings__help">
                 How many recent episodes stay on the server for you.

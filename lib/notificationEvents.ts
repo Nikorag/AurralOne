@@ -5,6 +5,7 @@ export const NOTIFICATION_EVENTS = [
   "notifyRequestAvailable",
   "notifyArtistAdded",
   "notifyTrackAdded",
+  "notifyPodcastEpisode",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
