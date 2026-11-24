@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { Moon, Pause, Play, RotateCcw, SkipBack, SkipForward, Stop, X } from "../icons";
 import { ModalBackdrop } from "../ModalBackdrop";
 import RouteLink from "../RouteLink";
+import PillToggle from "../PillToggle";
 import { Select } from "../Select";
 import TooltipButton from "../TooltipButton";
 import { useModalDialog } from "../../hooks/useModalDialog";
@@ -201,6 +202,38 @@ export function PodcastNowPlaying({ onClose }: { onClose: () => void }) {
               onChange={(forward) => player.setSkip({ forward })}
             />
           </label>
+        </div>
+        <div className="podcast-settings">
+          <div className="podcast-settings__row">
+            <span>
+              Voice boost
+              <span className="podcast-settings__help">
+                Evens out loudness and adds clarity to speech.
+              </span>
+            </span>
+            <PillToggle
+              aria-label="Voice boost"
+              checked={player.effects.voiceBoost}
+              disabled={!player.effectsAvailable}
+              onChange={(event) => player.setEffects({ voiceBoost: event.target.checked })}
+            />
+          </div>
+          <div className="podcast-settings__row">
+            <span>
+              Trim silence
+              <span className="podcast-settings__help">
+                {player.effectsAvailable
+                  ? "Speeds through long pauses."
+                  : "Not available for this connection."}
+              </span>
+            </span>
+            <PillToggle
+              aria-label="Trim silence"
+              checked={player.effects.trimSilence}
+              disabled={!player.effectsAvailable}
+              onChange={(event) => player.setEffects({ trimSilence: event.target.checked })}
+            />
+          </div>
         </div>
         {player.queue.length ? (
           <section className="podcast-now__queue" aria-label="Up next">

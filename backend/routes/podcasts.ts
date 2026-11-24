@@ -45,6 +45,8 @@ import {
 } from "../services/podcasts/views.ts";
 import { db } from "../config/db-sqlite.ts";
 import { sendAudioFile } from "../services/audioFileStream.ts";
+import { streamEpisode } from "../services/podcasts/stream.ts";
+import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { sendViaNode } from "./shared/sendViaNode.ts";
 
 const MANUAL_REFRESH_GAP_MS = 30_000;
@@ -241,6 +243,16 @@ export default new Hono<AppEnv>()
     if (!row?.path) return c.json(notFound, 404);
     const sent = await sendViaNode(c, sendAudioFile, mediaStore.resolve(row.path));
     return sent || c.json(notFound, 404);
+  })
+  .get("/episodes/:id/stream", async (c) => {
+    const episodeId = id(c.req.param("id")) ?? 0;
+    const { incoming, outgoing } = c.env;
+    c.res.headers.forEach((value, name) => outgoing.setHeader(name, value));
+    const result = await streamEpisode(episodeId, incoming, outgoing);
+    if (result === "sent") return RESPONSE_ALREADY_SENT;
+    return result === "missing"
+      ? c.json(notFound, 404)
+      : c.json({ error: "Couldn't stream this episode" }, 502);
   })
   .put("/episodes/:id/progress", validate("json", progressBody), (c) => {
     const result = saveProgress(c.var.user.id, id(c.req.param("id")) ?? 0, c.req.valid("json"));

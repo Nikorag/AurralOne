@@ -158,7 +158,7 @@ test("episode lists filter by state and say what is on the server", () => {
   assert.equal(theirs?.download.state, "downloaded");
   const other = views.getEpisode(2, 2);
   assert.equal(other?.download.state, "feed");
-  assert.equal(other?.audioUrl, "https://cdn.example.com/2.mp3");
+  assert.equal(other?.audioUrl, "/api/podcasts/episodes/2/stream");
 });
 
 test("history and continue-listening read from progress, not from downloaded files", () => {

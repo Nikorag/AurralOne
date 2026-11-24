@@ -35,6 +35,7 @@ const serve = (body: Buffer, contentType = "audio/mpeg", declared = true) =>
       data: await options?.consume?.(
         stream,
         new Headers(declared ? { "content-length": String(body.length) } : {}),
+        200,
       ),
     };
   });
@@ -94,7 +95,7 @@ test("progress is recorded while an episode downloads and cleared when it finish
         controller.close();
       },
     });
-    const data = await options?.consume?.(stream, new Headers({ "content-length": "2000" }));
+    const data = await options?.consume?.(stream, new Headers({ "content-length": "2000" }), 200);
     return { status: 200, statusText: "", headers: { "content-type": "audio/mpeg" }, data };
   });
 

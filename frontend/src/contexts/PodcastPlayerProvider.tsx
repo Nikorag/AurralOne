@@ -14,6 +14,11 @@ import { buildAuthenticatedApiUrl } from "../utils/api/core.ts";
 import { podcastsClient } from "../utils/api/clients/podcasts.ts";
 import { mediaSessionArtwork } from "../utils/mediaSession.ts";
 import {
+  canProcessSource,
+  createAudioEffects,
+  type PodcastEffects,
+} from "../utils/podcastAudioEffects.ts";
+import {
   sleepTimerFor,
   stopsAtEnd,
   type SleepOption,
@@ -23,6 +28,7 @@ import {
 const RATE_KEY = "podcastRate";
 const SKIP_KEY = "podcastSkip";
 const DEVICE_KEY = "podcastDeviceId";
+const EFFECTS_KEY = "podcastEffects";
 const SAVE_EVERY_MS = 15_000;
 const RESTART_WITHIN_SECONDS = 30;
 
@@ -44,6 +50,16 @@ const readSkip = () => {
     return { back: pick(record.back, 15), forward: pick(record.forward, 30) };
   } catch {
     return { back: 15, forward: 30 };
+  }
+};
+
+const readEffects = (): PodcastEffects => {
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(EFFECTS_KEY) ?? "{}");
+    const record = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : {};
+    return { voiceBoost: record.voiceBoost === true, trimSilence: record.trimSilence === true };
+  } catch {
+    return { voiceBoost: false, trimSilence: false };
   }
 };
 
@@ -90,6 +106,10 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
   const [rate, setRateState] = useState(() => readNumber(RATE_KEY, 1));
   const [skipIntervals, setSkipIntervals] = useState(readSkip);
   const [lastPlayer, setLastPlayer] = useState<"podcast" | "music">("podcast");
+  const [effects, setEffectsState] = useState(readEffects);
+  const [effectsAvailable, setEffectsAvailable] = useState(true);
+  const effectsRef = useRef(effects);
+  effectsRef.current = effects;
   const [sleep, setSleepState] = useState<SleepTimer>({ mode: "off" });
   const sleepRef = useRef(sleep);
   sleepRef.current = sleep;
@@ -100,6 +120,10 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
   musicRef.current = music;
   const playbackRate = useRef(rate);
   playbackRate.current = rate;
+  const audioEffects = useMemo(
+    () => createAudioEffects(audio, () => playbackRate.current),
+    [audio],
+  );
 
   const snapshot = useRef({ position: 0, duration: 0 });
   const listeners = useRef(new Set<() => void>());
@@ -157,8 +181,12 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       setError(null);
       setIsLoading(true);
       setLastPlayer("podcast");
-      audio.src = sourceFor(next);
+      const source = sourceFor(next);
+      audio.src = source;
       audio.playbackRate = playbackRate.current;
+      const processable = canProcessSource(source);
+      setEffectsAvailable(processable);
+      if (processable) audioEffects.apply(effectsRef.current);
       const resumeAt = startPosition(next);
       const onReady = () => {
         if (resumeAt > 0 && audio.currentTime < 1) audio.currentTime = resumeAt;
@@ -184,7 +212,7 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => undefined);
     },
-    [audio, publishPosition],
+    [audio, audioEffects, publishPosition],
   );
 
   const pauseMusic = useCallback(() => {
@@ -249,7 +277,6 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
           : "Couldn't stream this episode. Download it to play it from your server.",
       );
     };
-    const onRate = () => setRateState(audio.playbackRate);
     audio.addEventListener("playing", onPlaying);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("waiting", onWaiting);
@@ -258,7 +285,6 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("timeupdate", publishPosition);
     audio.addEventListener("durationchange", publishPosition);
     audio.addEventListener("loadedmetadata", publishPosition);
-    audio.addEventListener("ratechange", onRate);
     return () => {
       audio.removeEventListener("playing", onPlaying);
       audio.removeEventListener("pause", onPause);
@@ -268,7 +294,6 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("timeupdate", publishPosition);
       audio.removeEventListener("durationchange", publishPosition);
       audio.removeEventListener("loadedmetadata", publishPosition);
-      audio.removeEventListener("ratechange", onRate);
     };
   }, [audio, playNext, publishPosition, refreshLists, save]);
 
@@ -306,6 +331,20 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
     );
     return () => window.clearTimeout(timer);
   }, [audio, sleep]);
+
+  const setEffects = useCallback(
+    (change: Partial<PodcastEffects>) => {
+      const next = { ...effectsRef.current, ...change };
+      setEffectsState(next);
+      try {
+        window.localStorage.setItem(EFFECTS_KEY, JSON.stringify(next));
+      } catch {}
+      if (episodeRef.current && canProcessSource(audio.currentSrc || audio.src)) {
+        audioEffects.apply(next);
+      }
+    },
+    [audio, audioEffects],
+  );
 
   const setSleep = useCallback(
     (option: SleepOption) => setSleepState(sleepTimerFor(option, Date.now())),
@@ -348,6 +387,7 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
   const setRate = useCallback(
     (next: number) => {
       const value = PLAYBACK_RATES.find((candidate) => candidate === next) ?? 1;
+      playbackRate.current = value;
       audio.playbackRate = value;
       setRateState(value);
       try {
@@ -447,6 +487,9 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       showBar,
       sleep,
       setSleep,
+      effects,
+      effectsAvailable,
+      setEffects,
       isCurrent: (episodeId) => episode?.id === episodeId,
       play,
       toggle,
@@ -476,6 +519,9 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       setRate,
       setSkip,
       setSleep,
+      setEffects,
+      effects,
+      effectsAvailable,
       showBar,
       skip,
       sleep,
