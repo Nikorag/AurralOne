@@ -1,0 +1,29 @@
+---
+title: Transmission
+description: Download albums and tracks from torrent indexers through Prowlarr and Transmission.
+---
+
+Aurral searches your torrent indexers in [Prowlarr](/integrations/usenet/#prowlarr) and sends the torrents it picks to Transmission. It works the same way as [qBittorrent](/integrations/qbittorrent/), and you can connect both.
+
+## Setup
+
+1. Connect Prowlarr in **Settings > Downloads > Prowlarr**, with one or more torrent audio indexers turned on in Prowlarr.
+2. Mount Transmission's download folder in Aurral, so Aurral can read finished torrents. See [Filesystem and mounts](/getting-started/storage/).
+3. Open **Settings > Downloads > Transmission** and turn on **Enable Transmission**.
+4. Set **Server URL** to Transmission, for example `http://transmission:9091`, with its **Username** and **Password** when RPC sign-in is on.
+5. If necessary, set **Label**. The default is `aurral`.
+6. Select **Test connection**.
+
+Aurral needs Transmission 3.00 or newer, which added labels. It finds its torrents by label. If Transmission refuses the connection, add Aurral's address to its RPC whitelist, or its hostname to the host whitelist.
+
+## Path mapping
+
+When Transmission reports its downloads under another path than Aurral sees, add a mapping in **Settings > Downloads > Remote path mappings**, with **Applies to** set to **Transmission**.
+
+## Behavior
+
+Torrents hold albums, so for a single track Aurral searches for the track's album, and downloads only the files it needs. A torrent file stays stopped until Aurral has chosen its files. A magnet link has to run to fetch its file list, so Transmission can start on files Aurral then skips. Aurral discards that data when it removes the torrent.
+
+When a torrent finishes, Aurral links its audio files, or copies them when they are on another disk. The torrent stays in Transmission to seed. Once Transmission stops it, for example at a seeding limit, Aurral removes the torrent and its files within the hour. A torrent Aurral cancels or doesn't import from is removed right away.
+
+See [Download source priority and fallback](/integrations/usenet/#download-source-priority-and-fallback).

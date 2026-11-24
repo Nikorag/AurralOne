@@ -18,6 +18,7 @@ export const integrationCoverage = {
   metadata: { by: "core" },
   musicbrainz: { by: "core" },
   general: { by: "core" },
+  transmission: { missing: "Eden has no Transmission stand-in yet" },
   tidarr: { missing: "Tidarr downloads from a paid Tidal account" },
   deemix: { missing: "deemix downloads from a Deezer account" },
   google: { missing: "Google sign-in needs a Google account" },
