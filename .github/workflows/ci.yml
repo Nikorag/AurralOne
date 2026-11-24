@@ -110,7 +110,6 @@ jobs:
       packages: write
       pull-requests: write
     env:
-      IMAGE: ghcr.io/${{ github.repository }}:pr-${{ github.event.number }}
       PREVIEW: >-
         ${{
           github.base_ref == 'main' &&
@@ -121,6 +120,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:pr-${{ github.event.number }}" >> "${GITHUB_ENV}"
 
       - run: docker build --check .
 

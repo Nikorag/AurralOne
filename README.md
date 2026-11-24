@@ -50,7 +50,7 @@ services:
       - ./data:/data
 ```
 
-Run `docker compose up -d`, open `http://localhost:3001`, and create your admin account. No companion containers required to start. The image is built for `linux/amd64` and `linux/arm64`. `latest` follows `main`, and version tags like `1.0.0` are pinned releases.
+Run `docker compose up -d`, open `http://localhost:3001`, and create your admin account. No companion containers required to start. The image is built for `linux/amd64` and `linux/arm64`. `latest` is the newest release and version tags like `1.0.0` are pinned. `nightly` follows `main` and is `amd64` only.
 
 ## About this fork
 

@@ -30,10 +30,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> "${GITHUB_ENV}"
+
       - name: Scan latest stable image for OS vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: "ghcr.io/${{ github.repository }}:latest"
+          image-ref: ${{ env.IMAGE }}
           format: sarif
           output: trivy-image-os-${{ matrix.arch }}.sarif
           vuln-type: os

@@ -47,6 +47,8 @@ jobs:
             exit 1
           fi
 
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:nightly" >> "${GITHUB_ENV}"
+
       - id: version
         run: echo "value=nightly.${GITHUB_RUN_NUMBER}+${GITHUB_SHA:0:7}" >> "${GITHUB_OUTPUT}"
 
@@ -64,7 +66,7 @@ jobs:
           push: true
           provenance: mode=max
           sbom: true
-          tags: ghcr.io/${{ github.repository }}:nightly
+          tags: ${{ env.IMAGE }}
           platforms: linux/amd64
           build-args: |
             APP_VERSION=${{ steps.version.outputs.value }}
