@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router";
-import { AlertCircle, Mic, Play, RefreshCw, Settings } from "../../components/icons";
+import { useLocation, useParams } from "react-router";
+import { AlertCircle, Mic, Play, RefreshCw, Settings, Share } from "../../components/icons";
+import { LibraryItemMenu } from "../../components/LibraryItemMenu";
 import { Select } from "../../components/Select";
 import StatePanel from "../../components/StatePanel";
 import TooltipButton from "../../components/TooltipButton";
@@ -8,10 +9,14 @@ import { SkeletonFeedPage } from "../../components/Skeletons";
 import { EpisodeRow, PodcastArt } from "../../components/podcasts/podcastUi";
 import { formatPublished } from "../../components/podcasts/podcastFormat";
 import { usePodcastPlayer } from "../../contexts/podcastPlayerContext";
+import { useToast } from "../../contexts/ToastContext";
+import { getAppBasePath } from "../../utils/basePath";
+import { copyText, sharedEpisodeId, showLink } from "../../utils/podcastLinks";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   useFollowPodcast,
   usePodcast,
+  usePodcastEpisode,
   usePodcastEpisodes,
   useRefreshPodcast,
   type EpisodeFilter,
@@ -45,6 +50,10 @@ export default function PodcastDetailPage() {
   const { id: rawId } = useParams();
   const id = Number(rawId);
   const player = usePodcastPlayer();
+  const { search } = useLocation();
+  const { showError, showSuccess } = useToast();
+  const sharedId = sharedEpisodeId(search, id);
+  const sharedEpisode = usePodcastEpisode(sharedId).data?.episode;
   const podcastQuery = usePodcast(id);
   const podcast = podcastQuery.data?.podcast;
   useDocumentTitle(podcast?.title ?? "Podcast");
@@ -147,6 +156,35 @@ export default function PodcastDetailPage() {
                 Follow
               </button>
             )}
+            <LibraryItemMenu
+              label={podcast.title}
+              contextMenu={false}
+              triggerIcon={<Share aria-hidden="true" />}
+              triggerLabel="Share"
+              triggerClassName="btn btn-ghost btn-icon"
+              items={[
+                {
+                  id: "copy-feed",
+                  label: "Copy RSS feed URL",
+                  description: "Works in any podcast app",
+                  onSelect: async () => {
+                    if (podcast.feed.url && (await copyText(podcast.feed.url))) {
+                      showSuccess("Feed URL copied");
+                    } else showError("Couldn't copy the feed URL");
+                  },
+                },
+                {
+                  id: "copy-link",
+                  label: "Copy link to this show",
+                  description: "Opens it for people on this server",
+                  onSelect: async () => {
+                    const link = showLink(window.location.origin, getAppBasePath(), podcast.id);
+                    if (await copyText(link)) showSuccess("Link copied");
+                    else showError("Couldn't copy the link");
+                  },
+                },
+              ]}
+            />
             <TooltipButton
               label="Check for new episodes"
               className="btn btn-ghost btn-icon"
@@ -170,6 +208,13 @@ export default function PodcastDetailPage() {
           </p>
         </div>
       </header>
+
+      {sharedEpisode && sharedEpisode.podcastId === podcast.id ? (
+        <section className="podcast-section" aria-label="Shared episode">
+          <h2 className="podcast-section__title">Shared with you</h2>
+          <EpisodeRow episode={sharedEpisode} />
+        </section>
+      ) : null}
 
       <section className="podcast-section" aria-label="Episodes">
         <div className="podcast-toolbar">

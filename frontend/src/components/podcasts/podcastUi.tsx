@@ -20,6 +20,9 @@ import {
   type PodcastEpisode,
 } from "../../hooks/usePodcasts";
 import { usePodcastPlayer } from "../../contexts/podcastPlayerContext";
+import { useToast } from "../../contexts/ToastContext";
+import { getAppBasePath } from "../../utils/basePath";
+import { copyText, episodeLink } from "../../utils/podcastLinks";
 import {
   DOWNLOAD_LABELS,
   episodeProgress,
@@ -154,6 +157,7 @@ export function EpisodeRow({
 }) {
   const player = usePodcastPlayer();
   const action = useEpisodeAction();
+  const { showError, showSuccess } = useToast();
   const current = player.isCurrent(episode.id);
   const playing = current && player.isPlaying;
   const { fraction, started, played, remaining } = episodeProgress(episode);
@@ -173,17 +177,30 @@ export function EpisodeRow({
       icon: ListEnd,
       onSelect: () => player.enqueue(episode),
     },
+    {
+      id: "copy-link",
+      label: "Copy link to episode",
+      separatorBefore: true,
+      onSelect: async () => {
+        const link = episodeLink(
+          window.location.origin,
+          getAppBasePath(),
+          episode.podcastId,
+          episode.id,
+        );
+        if (await copyText(link)) showSuccess("Link copied");
+        else showError("Couldn't copy the link");
+      },
+    },
     played
       ? {
           id: "unplayed",
           label: "Mark as unplayed",
-          separatorBefore: true,
           onSelect: () => action.mutate({ id: episode.id, action: "unplayed" }),
         }
       : {
           id: "played",
           label: "Mark as played",
-          separatorBefore: true,
           onSelect: () => action.mutate({ id: episode.id, action: "played" }),
         },
     ...(started

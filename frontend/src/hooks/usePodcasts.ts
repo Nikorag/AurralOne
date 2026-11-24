@@ -171,6 +171,20 @@ export async function downloadOpml() {
   URL.revokeObjectURL(url);
 }
 
+export const usePodcastEpisode = (episodeId: number | null) =>
+  useQuery({
+    queryKey: [...ROOT, "episode", episodeId] as const,
+    queryFn: ({ signal }) =>
+      parseResponse(
+        podcastsClient.episodes[":id"].$get(
+          { param: { id: String(episodeId) } },
+          { init: { signal } },
+        ),
+      ),
+    enabled: episodeId !== null,
+    retry: false,
+  });
+
 export const usePodcastChapters = (episodeId: number | null) =>
   useQuery({
     queryKey: [...ROOT, "chapters", episodeId] as const,

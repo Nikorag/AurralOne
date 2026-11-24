@@ -17,6 +17,9 @@ Podcasts have their own tables and queues, and share only the job queue, the SSR
 - **Progress sync is last-write-wins by client time.** A write older than the stored one is ignored and the server returns the winner. Client clocks are clamped to five minutes ahead so a wrong clock can't lock a user out.
 - **Directories are optional.** Following works from any RSS URL. Apple Podcasts and Podcast Index only supply search and browse, behind `PodcastDirectory`. Anything else is a plugin.
 
+- **Episodes that aren't downloaded stream through the server.** The browser can only process same-origin audio (voice boost, silence trimming), and a cross-origin source goes silent once it is routed through Web Audio. Streaming also fixes `http`-only enclosures under the CSP. The route only serves stored episodes and only audio types, so it isn't an open proxy.
+- **Podcasts don't use the share-link system.** Those links are published to aurral.org, which would need a podcast page. A show shares as its feed URL or a link on this server.
+
 ## Traps
 
 - Feeds and audio go through `http` with `publicOnly`, which pins DNS and re-checks every redirect. Eden's proxy doesn't see these requests, so Eden can't serve a fake feed.
