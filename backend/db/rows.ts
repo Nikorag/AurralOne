@@ -506,6 +506,103 @@ export interface PluginsRow {
   updated_at: number;
 }
 
+export interface PodcastEntitlementsRow {
+  user_id: number;
+  episode_id: number;
+  reason: string;
+  created_at: number;
+}
+
+export interface PodcastEpisodesRow {
+  id: number;
+  podcast_id: number;
+  guid: string;
+  title: string;
+  description: string | null;
+  published_at: number | null;
+  duration_seconds: number | null;
+  image_url: string | null;
+  enclosure_url: string;
+  enclosure_type: string | null;
+  enclosure_bytes: number | null;
+  season: number | null;
+  episode_number: number | null;
+  created_at: number;
+}
+
+export interface PodcastFollowsRow {
+  user_id: number;
+  podcast_id: number;
+  followed_at: number;
+  keep_latest: number;
+  auto_download: number;
+  remove_played: number;
+}
+
+export interface PodcastHistoryRow {
+  id: number;
+  user_id: number;
+  episode_id: number;
+  listened_at: number;
+  seconds: number;
+}
+
+export interface PodcastMediaRow {
+  episode_id: number;
+  status: string;
+  storage: string;
+  path: string | null;
+  bytes: number | null;
+  content_type: string | null;
+  sha256: string | null;
+  error: string | null;
+  attempts: number;
+  updated_at: number;
+  downloaded_at: number | null;
+}
+
+export interface PodcastProgressRow {
+  user_id: number;
+  episode_id: number;
+  position_seconds: number;
+  duration_seconds: number | null;
+  played: number;
+  completed_at: number | null;
+  last_listened_at: number | null;
+  updated_at: number;
+  device_id: string | null;
+}
+
+export interface PodcastProviderIdsRow {
+  provider: string;
+  external_id: string;
+  podcast_id: number;
+}
+
+export interface PodcastSourcesRow {
+  podcast_id: number;
+  feed_url: string;
+  etag: string | null;
+  last_modified: string | null;
+  last_checked_at: number | null;
+  last_success_at: number | null;
+  last_error: string | null;
+  failure_count: number;
+  next_check_at: number;
+}
+
+export interface PodcastsRow {
+  id: number;
+  title: string;
+  publisher: string | null;
+  description: string | null;
+  image_url: string | null;
+  language: string | null;
+  categories: string | null;
+  website_url: string | null;
+  created_at: number;
+}
+
 export interface ReleaseFeedRow {
   artist_mbid: string;
   release_group_mbid: string;
