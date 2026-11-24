@@ -47,7 +47,12 @@ export const scenarios: Scenario[] = [
   },
   {
     name: "podcasts home",
-    requests: () => ["/api/podcasts/home", "/api/podcasts/library", "/api/podcasts/history"],
+    requests: () => [
+      "/api/podcasts/home",
+      "/api/podcasts/library",
+      "/api/podcasts/history",
+      "/api/podcasts/downloads",
+    ],
   },
   {
     name: "library albums",

@@ -32,6 +32,7 @@ import ManualMissingSearchModal, {
   type ManualSearchJob,
 } from "./activity/ManualMissingSearchModal";
 import ActivityCauses from "./activity/ActivityCauses";
+import { PodcastDownloads } from "../components/podcasts/PodcastDownloads";
 import { getApiErrorText } from "../utils/api/errors.ts";
 
 import { Navigate, useParams, useSearchParams } from "react-router";
@@ -502,6 +503,8 @@ function ActivityPage() {
           Downloads are paused. Tracks already downloading will finish.
         </p>
       )}
+
+      {isQueueView && !activeStatus ? <PodcastDownloads /> : null}
 
       {error && (
         <StatePanel

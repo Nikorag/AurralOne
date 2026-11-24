@@ -26,6 +26,7 @@ import { reconcilePodcastStorage, refreshAndReconcile } from "../services/podcas
 import { getPodcastSettings, savePodcastSettings } from "../services/podcasts/settings.ts";
 import { importPodcastFeed } from "../services/podcasts/store.ts";
 import {
+  activeDownloads,
   continueListening,
   EPISODE_FILTERS,
   followedPodcasts,
@@ -173,6 +174,7 @@ export default new Hono<AppEnv>()
       );
     }
   })
+  .get("/downloads", (c) => c.json({ downloads: activeDownloads(c.var.user.id) }, 200))
   .get("/library", (c) => c.json({ podcasts: followedPodcasts(c.var.user.id) }, 200))
   .get("/history", validate("query", page), (c) =>
     c.json(listeningHistory(c.var.user.id, { offset: c.req.valid("query").offset }), 200),

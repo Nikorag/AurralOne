@@ -163,7 +163,8 @@ export const requestEpisodeDownload = db.transaction((userId: number, episodeId:
      VALUES (?, ?, 'manual', ?) ON CONFLICT (user_id, episode_id) DO UPDATE SET reason = 'manual'`,
   ).run(userId, episodeId, now);
   statements.needMedia.run(episodeId, now);
-  return statements.mediaStatus.get(episodeId)?.status === "pending";
+  const status = statements.mediaStatus.get(episodeId)?.status;
+  return status === "pending" || status === "failed" || status === "awaiting_storage";
 });
 
 export const releaseEpisodeDownload = (userId: number, episodeId: number) =>

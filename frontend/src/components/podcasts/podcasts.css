@@ -610,3 +610,60 @@
 .podcast-admin__meter[data-tone="warning"] > span {
   background: var(--aurral-warning);
 }
+
+.podcast-downloads {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.podcast-download {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--aurral-radius-sm);
+}
+
+.podcast-download__art {
+  width: 2.75rem;
+}
+
+.podcast-download__main {
+  display: grid;
+  min-width: 0;
+}
+
+.podcast-download__title {
+  overflow: hidden;
+  font-size: var(--aurral-font-base);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podcast-download__show,
+.podcast-download__error {
+  overflow: hidden;
+  color: var(--aurral-text-muted);
+  font-size: var(--aurral-font-xs);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podcast-download__error {
+  color: var(--aurral-danger);
+}
+
+@media (max-width: 767px) {
+  .podcast-download {
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  }
+
+  .podcast-download > .btn {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}

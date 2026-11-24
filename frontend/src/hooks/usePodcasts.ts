@@ -24,6 +24,10 @@ export type EpisodeFilter = NonNullable<
 export type EpisodeSort = NonNullable<
   InferRequestType<(typeof podcastsClient)[":id"]["episodes"]["$get"]>["query"]["sort"]
 >;
+export type PodcastDownload = InferResponseType<
+  typeof podcastsClient.downloads.$get,
+  200
+>["downloads"][number];
 export type PodcastAdminStatus = InferResponseType<typeof podcastsClient.admin.status.$get, 200>;
 
 const ROOT = ["podcasts"] as const;
@@ -39,6 +43,7 @@ export const podcastKeys = {
   search: (term: string) => [...ROOT, "search", term] as const,
   category: (id: string) => [...ROOT, "category", id] as const,
   admin: [...ROOT, "admin"] as const,
+  downloads: [...ROOT, "downloads"] as const,
 };
 
 export const invalidatePodcasts = (queryClient: QueryClient) =>
@@ -120,6 +125,18 @@ export const usePodcastCategory = (category: string) =>
       ),
     staleTime: 10 * 60_000,
     retry: false,
+  });
+
+export const usePodcastDownloads = () =>
+  useQuery({
+    queryKey: podcastKeys.downloads,
+    queryFn: ({ signal }) => parseResponse(podcastsClient.downloads.$get({}, { init: { signal } })),
+    refetchInterval: (query) =>
+      query.state.data?.downloads.some((item) =>
+        ["pending", "queued", "downloading"].includes(item.state),
+      )
+        ? 3000
+        : false,
   });
 
 export const usePodcastAdminStatus = () =>

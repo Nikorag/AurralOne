@@ -313,3 +313,41 @@ export const followedFeedKeys = (userId: number) => {
   }
   return { feeds, providers };
 };
+
+export function activeDownloads(userId: number) {
+  return db
+    .prepare<
+      [number],
+      {
+        id: number;
+        title: string;
+        podcast_id: number;
+        podcast_title: string;
+        image_url: string | null;
+        status: string;
+        error: string | null;
+      }
+    >(
+      `SELECT e.id, e.title, e.podcast_id, p.title AS podcast_title,
+         COALESCE(e.image_url, p.image_url) AS image_url, m.status, m.error
+       FROM podcast_entitlements n
+       JOIN podcast_media m ON m.episode_id = n.episode_id
+       JOIN podcast_episodes e ON e.id = n.episode_id
+       JOIN podcasts p ON p.id = e.podcast_id
+       WHERE n.user_id = ?
+         AND m.status IN ('pending', 'queued', 'downloading', 'awaiting_storage', 'failed')
+       ORDER BY CASE m.status WHEN 'downloading' THEN 0 WHEN 'queued' THEN 1 WHEN 'pending' THEN 1
+         WHEN 'awaiting_storage' THEN 2 ELSE 3 END, m.updated_at DESC, e.published_at DESC, e.id DESC
+       LIMIT 100`,
+    )
+    .all(userId)
+    .map((row) => ({
+      episodeId: row.id,
+      title: row.title,
+      podcastId: row.podcast_id,
+      podcastTitle: row.podcast_title,
+      imageUrl: row.image_url,
+      state: row.status as Exclude<DownloadState, "feed" | "downloaded">,
+      error: row.status === "failed" || row.status === "awaiting_storage" ? row.error : null,
+    }));
+}

@@ -2,10 +2,11 @@ import { test, beforeEach, afterAll } from "vite-plus/test";
 import assert from "node:assert/strict";
 import { setupIsolatedBackend, cleanupIsolatedState } from "../helpers/backendTestHarness.ts";
 
-const [isolatedState, { db }, follows] = await setupIsolatedBackend(
+const [isolatedState, { db }, follows, views] = await setupIsolatedBackend(
   "podcast-follows",
   () => import("../../backend/config/db-sqlite.ts"),
   () => import("../../backend/services/podcasts/follows.ts"),
+  () => import("../../backend/services/podcasts/views.ts"),
 );
 
 const EPISODES = 10;
@@ -124,4 +125,28 @@ test("following twice does not duplicate anything", () => {
     1,
   );
   assert.equal(entitled(1).length, 5);
+});
+
+test("downloads in progress are listed for the user who keeps them, and a failed one can be retried", () => {
+  follows.followPodcast(1, 1);
+  db.prepare("UPDATE podcast_media SET status = 'downloading' WHERE episode_id = 10").run();
+  db.prepare(
+    "UPDATE podcast_media SET status = 'failed', error = 'Reset' WHERE episode_id = 9",
+  ).run();
+  db.prepare("UPDATE podcast_media SET status = 'downloaded' WHERE episode_id = 8").run();
+
+  const mine = views.activeDownloads(1);
+  assert.deepEqual(
+    mine.map((item) => [item.episodeId, item.state, item.error]),
+    [
+      [10, "downloading", null],
+      [7, "pending", null],
+      [6, "pending", null],
+      [9, "failed", "Reset"],
+    ],
+  );
+  assert.deepEqual(views.activeDownloads(2), []);
+
+  assert.equal(follows.requestEpisodeDownload(1, 9), true);
+  assert.equal(follows.requestEpisodeDownload(1, 10), false);
 });
