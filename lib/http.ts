@@ -34,7 +34,7 @@ export interface HttpOptions {
   signal?: AbortSignal;
   responseType?: "buffer";
   maxBytes?: number;
-  consume?: (body: ReadableStream<Uint8Array>) => Promise<unknown>;
+  consume?: (body: ReadableStream<Uint8Array>, headers: Headers) => Promise<unknown>;
   okStatus?: (status: number) => boolean;
   insecureTls?: boolean;
   publicOnly?: boolean;
@@ -187,7 +187,9 @@ async function readLimited(response: FetchResponse, maxBytes: number) {
 
 async function readBody(response: FetchResponse, options: HttpOptions) {
   if (options.consume) {
-    return response.body ? options.consume(response.body as ReadableStream<Uint8Array>) : null;
+    return response.body
+      ? options.consume(response.body as ReadableStream<Uint8Array>, response.headers as Headers)
+      : null;
   }
   if (options.maxBytes != null && options.responseType === "buffer") {
     return readLimited(response, options.maxBytes);

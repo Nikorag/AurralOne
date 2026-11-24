@@ -8,6 +8,7 @@ export const WORKER_GROUPS = [
   "inbox",
   "notifications",
   "play-events",
+  "podcasts",
 ] as const;
 
 export type WorkerGroup = (typeof WORKER_GROUPS)[number];
