@@ -605,6 +605,21 @@ const trackPodcastDownloadProgress: Migration = (db) => {
   addColumn(db, "podcast_media", "total_bytes", "INTEGER");
 };
 
+const createPodcastImports: Migration = (db) =>
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS podcast_imports (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      feed_url TEXT NOT NULL,
+      title TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      error TEXT,
+      podcast_id INTEGER REFERENCES podcasts(id) ON DELETE SET NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, feed_url),
+      CHECK (status IN ('pending', 'done', 'failed'))
+    );
+  `);
+
 export const migrations: Migration[] = [
   createAurral3Schema,
   indexFinishedDownloadNames,
@@ -641,6 +656,7 @@ export const migrations: Migration[] = [
   clearReleaseGroupsStoredAsReleases,
   createPodcasts,
   trackPodcastDownloadProgress,
+  createPodcastImports,
 ];
 
 export function migrate(db: Database.Database, steps: readonly Migration[] = migrations) {

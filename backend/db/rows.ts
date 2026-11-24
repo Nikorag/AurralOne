@@ -547,6 +547,16 @@ export interface PodcastHistoryRow {
   seconds: number;
 }
 
+export interface PodcastImportsRow {
+  user_id: number;
+  feed_url: string;
+  title: string | null;
+  status: string;
+  error: string | null;
+  podcast_id: number | null;
+  created_at: number;
+}
+
 export interface PodcastMediaRow {
   episode_id: number;
   status: string;

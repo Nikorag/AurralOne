@@ -667,3 +667,33 @@
     justify-self: start;
   }
 }
+
+.podcast-import {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--aurral-radius);
+  background: var(--aurral-surface-raised);
+  font-size: var(--aurral-font-sm);
+}
+
+.podcast-import p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+}
+
+.podcast-import__failures {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.podcast-import__failures li {
+  display: grid;
+  gap: 0.1rem;
+}

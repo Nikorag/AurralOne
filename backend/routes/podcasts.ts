@@ -7,6 +7,12 @@ import type { AppEnv } from "../middleware/requestUser.ts";
 import { validate } from "../middleware/validate.ts";
 import { podcastStatus, refreshAllNow, retryFailedDownloads } from "../services/podcasts/admin.ts";
 import * as discover from "../services/podcasts/discover.ts";
+import {
+  clearFinishedImports,
+  exportOpml,
+  importStatus,
+  queueOpmlImport,
+} from "../services/podcasts/opml.ts";
 import { queueDownloads } from "../services/podcasts/downloads.ts";
 import {
   followPodcast,
@@ -175,6 +181,29 @@ export default new Hono<AppEnv>()
     }
   })
   .get("/downloads", (c) => c.json({ downloads: activeDownloads(c.var.user.id) }, 200))
+  .get("/opml", (c) => {
+    c.header("Content-Type", "text/x-opml; charset=utf-8");
+    c.header("Content-Disposition", 'attachment; filename="aurral-podcasts.opml"');
+    return c.body(exportOpml(c.var.user.id));
+  })
+  .post(
+    "/opml",
+    validate(
+      "json",
+      v.object({ opml: v.pipe(v.string(), v.minLength(1), v.maxLength(2_000_000)) }),
+    ),
+    (c) => {
+      const result = queueOpmlImport(c.var.user.id, c.req.valid("json").opml);
+      return "error" in result
+        ? c.json({ error: "Couldn't import this file", message: result.error }, 422)
+        : c.json({ ...result, status: importStatus(c.var.user.id) }, 200);
+    },
+  )
+  .get("/opml/imports", (c) => c.json(importStatus(c.var.user.id), 200))
+  .delete("/opml/imports", (c) => {
+    clearFinishedImports(c.var.user.id);
+    return c.json(importStatus(c.var.user.id), 200);
+  })
   .get("/library", (c) => c.json({ podcasts: followedPodcasts(c.var.user.id) }, 200))
   .get("/history", validate("query", page), (c) =>
     c.json(listeningHistory(c.var.user.id, { offset: c.req.valid("query").offset }), 200),

@@ -52,6 +52,7 @@ export const scenarios: Scenario[] = [
       "/api/podcasts/library",
       "/api/podcasts/history",
       "/api/podcasts/downloads",
+      "/api/podcasts/opml/imports",
     ],
   },
   {

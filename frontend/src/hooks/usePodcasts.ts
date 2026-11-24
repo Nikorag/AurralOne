@@ -44,6 +44,7 @@ export const podcastKeys = {
   category: (id: string) => [...ROOT, "category", id] as const,
   admin: [...ROOT, "admin"] as const,
   downloads: [...ROOT, "downloads"] as const,
+  imports: [...ROOT, "imports"] as const,
 };
 
 export const invalidatePodcasts = (queryClient: QueryClient) =>
@@ -138,6 +139,37 @@ export const usePodcastDownloads = () =>
         ? 3000
         : false,
   });
+
+export type PodcastImportStatus = InferResponseType<typeof podcastsClient.opml.imports.$get, 200>;
+
+export const usePodcastImports = () =>
+  useQuery({
+    queryKey: podcastKeys.imports,
+    queryFn: ({ signal }) =>
+      parseResponse(podcastsClient.opml.imports.$get({}, { init: { signal } })),
+    refetchInterval: (query) => (query.state.data?.pending ? 2000 : false),
+  });
+
+export const useImportOpml = () =>
+  useActionMutation(
+    (opml: string) => parseResponse(podcastsClient.opml.$post({ json: { opml } })),
+    { failure: "Couldn't import this file" },
+  );
+
+export const useClearPodcastImports = () =>
+  useActionMutation(() => parseResponse(podcastsClient.opml.imports.$delete({})), {
+    failure: "Couldn't clear the import results",
+  });
+
+export async function downloadOpml() {
+  const response = await podcastsClient.opml.$get({});
+  const url = URL.createObjectURL(new Blob([await response.text()], { type: "text/x-opml" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "aurral-podcasts.opml";
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export const usePodcastAdminStatus = () =>
   useQuery({

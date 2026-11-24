@@ -14,6 +14,7 @@ import type { queuedNotificationSchema } from "../notificationService.ts";
 import type { playEventDeliverySchema } from "../playEventService.ts";
 import type { podcastDownloadSchema } from "../podcasts/downloads.ts";
 import type { podcastRefreshSchema } from "../podcasts/refresh.ts";
+import type { podcastImportSchema } from "../podcasts/opml.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -254,4 +255,18 @@ export const podcastRefreshQueue = defineQueue<v.InferOutput<typeof podcastRefre
   skipInTest: true,
   start: (): Promise<unknown> =>
     import("../podcastWorker.ts").then((m) => m.startPodcastRefreshWorker()),
+});
+
+export const podcastImportQueue = defineQueue<v.InferOutput<typeof podcastImportSchema>>({
+  name: "podcast-import",
+  label: "Podcast imports",
+  description: "Adds and follows podcasts from an imported OPML file.",
+  group: "podcasts",
+  leaseMs: 5 * MINUTE,
+  maxAttempts: 1,
+  retryDelayMs: MINUTE,
+  timeoutMs: 10 * MINUTE,
+  skipInTest: true,
+  start: (): Promise<unknown> =>
+    import("../podcastWorker.ts").then((m) => m.startPodcastImportWorker()),
 });

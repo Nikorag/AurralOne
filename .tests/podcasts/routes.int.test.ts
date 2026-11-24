@@ -188,3 +188,25 @@ test("podcast administration is for admins, and the limit is configurable", asyn
   const status = await call("admin", "/admin/status");
   assert.equal(dig(status.body, "totals", "podcasts"), 1);
 });
+
+test("OPML export is a download of the user's own shows, and a bad file is refused", async () => {
+  await call("ann", "/1/follow", { method: "PUT" });
+  const exported = await fetch(`http://127.0.0.1:${server.port}/api/podcasts/opml`, {
+    headers: { Authorization: `Bearer ${tokens.ann}` },
+  });
+  assert.equal(exported.status, 200);
+  assert.match(exported.headers.get("content-disposition") ?? "", /aurral-podcasts\.opml/);
+  assert.match(await exported.text(), /xmlUrl="https:\/\/example\.com\/feed\.xml"/);
+  const other = await fetch(`http://127.0.0.1:${server.port}/api/podcasts/opml`, {
+    headers: { Authorization: `Bearer ${tokens.ben}` },
+  });
+  assert.equal((await other.text()).includes("example.com"), false);
+
+  const bad = await call("ann", "/opml", {
+    method: "POST",
+    body: JSON.stringify({ opml: "<html/>" }),
+  });
+  assert.equal(bad.status, 422);
+  const status = await call("ben", "/opml/imports");
+  assert.equal(dig(status.body, "total"), 0);
+});
