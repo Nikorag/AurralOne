@@ -22,6 +22,7 @@ import onboarding from "./onboarding.ts";
 import lyrics from "./lyrics.ts";
 import playEvents from "./playEvents.ts";
 import playQueue from "./playQueue.ts";
+import podcasts from "./podcasts.ts";
 import plex from "./plex.ts";
 import plugins from "./plugins.ts";
 import playlistArtwork from "./playlists/handlers/artwork.ts";
@@ -91,6 +92,7 @@ export const api = new Hono<AppEnv>()
   .route("/", visualizer)
   .route("/", playEvents)
   .route("/", playQueue)
+  .route("/", podcasts)
   .route("/", hubLink)
   .route("/", people)
   .route("/", shareLinks)

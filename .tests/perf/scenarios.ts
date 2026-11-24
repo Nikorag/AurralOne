@@ -46,6 +46,16 @@ export const scenarios: Scenario[] = [
     ],
   },
   {
+    name: "podcasts home",
+    requests: () => [
+      "/api/podcasts/home",
+      "/api/podcasts/library",
+      "/api/podcasts/history",
+      "/api/podcasts/downloads",
+      "/api/podcasts/opml/imports",
+    ],
+  },
+  {
     name: "library albums",
     requests: () => [library({ kind: "albums", page: 1, pageSize: 100, sort: "name" })],
   },

@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import {
   CalendarDays,
   Inbox,
+  Mic,
   Music2,
   Newspaper,
   SlidersHorizontal,
@@ -37,6 +38,7 @@ const ITEM_ICONS: Partial<Record<string, IconComponent>> = {
   recommendedNews: Newspaper,
   discovery: Sparkles,
   friend: Users,
+  podcast: Mic,
 };
 
 const isExternalHref = (href: string | null | undefined) =>
@@ -49,6 +51,7 @@ const getInboxSubtitle = (item: InboxListItem) => {
   }
   if (item.kind === "discovery")
     return ["New artist discovery", item.subtitle].filter(Boolean).join(" · ");
+  if (item.kind === "podcast") return ["New episode", item.subtitle].filter(Boolean).join(" · ");
   if (item.kind === "show") return ["Upcoming show", item.subtitle].filter(Boolean).join(" · ");
   if (item.kind === "news")
     return ["Library artist news", item.subtitle].filter(Boolean).join(" · ");
@@ -64,6 +67,7 @@ const FILTER_OPTIONS = [
   { value: "news", label: "Library artist news" },
   { value: "recommendedNews", label: "Recommended artist news" },
   { value: "discovery", label: "Discoveries" },
+  { value: "podcast", label: "Podcasts" },
   { value: "friend", label: "Friend requests" },
 ] as const;
 

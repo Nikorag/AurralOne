@@ -12,6 +12,9 @@ import type { discoveryRefreshSchema } from "../discoveryRefreshWorker.ts";
 import type { discoveryUserRefreshSchema } from "../discoveryUserRefreshWorker.ts";
 import type { queuedNotificationSchema } from "../notificationService.ts";
 import type { playEventDeliverySchema } from "../playEventService.ts";
+import type { podcastDownloadSchema } from "../podcasts/downloads.ts";
+import type { podcastRefreshSchema } from "../podcasts/refresh.ts";
+import type { podcastImportSchema } from "../podcasts/opml.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -223,4 +226,47 @@ export const playEventQueue = defineQueue<v.InferOutput<typeof playEventDelivery
   skipInTest: true,
   start: (): Promise<unknown> =>
     import("../playEventOutboxWorker.ts").then((m) => m.startPlayEventOutboxWorker()),
+});
+
+export const podcastDownloadQueue = defineQueue<v.InferOutput<typeof podcastDownloadSchema>>({
+  name: "podcast-downloads",
+  label: "Podcast downloads",
+  description: "Downloads podcast episodes that followers keep on the server.",
+  group: "podcasts",
+  leaseMs: 10 * MINUTE,
+  maxAttempts: 4,
+  retryDelayMs: 2 * MINUTE,
+  backoff: "exponential",
+  timeoutMs: 6 * HOUR,
+  skipInTest: true,
+  start: (): Promise<unknown> =>
+    import("../podcastWorker.ts").then((m) => m.startPodcastDownloadWorker()),
+});
+
+export const podcastRefreshQueue = defineQueue<v.InferOutput<typeof podcastRefreshSchema>>({
+  name: "podcast-refresh",
+  label: "Podcast refreshes",
+  description: "Checks followed podcast feeds for new episodes.",
+  group: "podcasts",
+  leaseMs: 5 * MINUTE,
+  maxAttempts: 2,
+  retryDelayMs: 5 * MINUTE,
+  timeoutMs: 10 * MINUTE,
+  skipInTest: true,
+  start: (): Promise<unknown> =>
+    import("../podcastWorker.ts").then((m) => m.startPodcastRefreshWorker()),
+});
+
+export const podcastImportQueue = defineQueue<v.InferOutput<typeof podcastImportSchema>>({
+  name: "podcast-import",
+  label: "Podcast imports",
+  description: "Adds and follows podcasts from an imported OPML file.",
+  group: "podcasts",
+  leaseMs: 5 * MINUTE,
+  maxAttempts: 1,
+  retryDelayMs: MINUTE,
+  timeoutMs: 10 * MINUTE,
+  skipInTest: true,
+  start: (): Promise<unknown> =>
+    import("../podcastWorker.ts").then((m) => m.startPodcastImportWorker()),
 });

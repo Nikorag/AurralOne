@@ -26,6 +26,7 @@ import { DownloadsSection } from "./sections/DownloadsSection";
 import { DiscoverySection } from "./sections/DiscoverySection";
 import { NotificationsSection } from "./sections/NotificationsSection";
 import { PluginsSection } from "./sections/PluginsSection";
+import { PodcastsSection } from "./sections/PodcastsSection";
 import { StatusSection } from "./sections/StatusSection";
 import { MetadataSection } from "./sections/MetadataSection";
 
@@ -40,6 +41,7 @@ const SECTION_COMPONENTS: Record<SettingsSectionId, ComponentType> = {
   monitoring: MonitoringSection,
   downloads: DownloadsSection,
   discovery: DiscoverySection,
+  podcasts: PodcastsSection,
   notifications: NotificationsSection,
   plugins: PluginsSection,
   status: StatusSection,

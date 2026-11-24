@@ -8,6 +8,7 @@ import {
   Headphones,
   Library,
   Link,
+  Mic,
   Monitor,
   Puzzle,
   SlidersHorizontal,
@@ -26,6 +27,7 @@ export const SETTINGS_SECTIONS = [
   { id: "monitoring", label: "Monitoring", icon: Eye, group: "server" },
   { id: "downloads", label: "Downloads", icon: Download, group: "server" },
   { id: "discovery", label: "Discovery", icon: Compass, group: "server" },
+  { id: "podcasts", label: "Podcasts", icon: Mic, group: "server" },
   { id: "notifications", label: "Notifications", icon: Bell, group: "server" },
   { id: "plugins", label: "Plugins", icon: Puzzle, group: "server", beta: true },
   { id: "status", label: "Status", icon: Activity, group: "server" },
@@ -156,6 +158,12 @@ const SETTINGS_SEARCH: Record<SettingsSectionId, Record<string, SettingsSearchEn
       keywords: "local shows concerts events consumer key radius",
     },
     News: { item: "news", keywords: "RSS articles feeds" },
+  },
+  podcasts: {
+    Storage: "podcast storage limit disk space gigabytes cleanup reconcile episodes",
+    Downloads: "podcast episodes queue failed retry waiting",
+    Feeds: "podcast RSS refresh interval check new episodes",
+    Directories: "podcast Apple Podcasts iTunes Podcast Index key secret search trending",
   },
   notifications: {
     Inbox: "upcoming releases shows artist news recommended discoveries",

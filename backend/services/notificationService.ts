@@ -310,6 +310,20 @@ export function notifyArtistAdded({
   });
 }
 
+export function notifyPodcastEpisode({
+  podcastTitle,
+  episodeTitle,
+}: {
+  podcastTitle: string;
+  episodeTitle: string;
+}) {
+  notify("notifyPodcastEpisode", {
+    title: `Aurral – ${podcastTitle}`,
+    message: `New episode of ${podcastTitle}: ${episodeTitle}`,
+    vars: { trackName: episodeTitle, artistName: podcastTitle },
+  });
+}
+
 export function notifyTrackAdded({
   trackName,
   artistName,

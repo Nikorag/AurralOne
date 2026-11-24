@@ -6,6 +6,7 @@ import {
   AudioWaveform,
   Library,
   Menu,
+  Mic,
   Sparkles,
   Ticket,
   type IconComponent,
@@ -105,6 +106,7 @@ function Sidebar({ mode, width = 208, onToggle, onRestorePlayer }: SidebarProps)
     const items: SidebarNavItem[] = [
       { path: "/", label: "Discover", icon: Sparkles, section: "discover" },
       { path: "/library", label: "Library", icon: Library, section: "library" },
+      { path: "/podcasts", label: "Podcasts", icon: Mic },
       { path: "/flows", label: "Flows", icon: AudioWaveform, permission: "accessPlaylists" },
       ...(ticketmasterConfigured
         ? [

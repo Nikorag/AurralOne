@@ -21,6 +21,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, queryKeys } from "./queryClient";
 import { DiscoverRecentProvider } from "./contexts/DiscoverRecentProvider";
 import { AudioQueueProvider } from "./contexts/AudioQueueProvider";
+import { PodcastPlayerProvider } from "./contexts/PodcastPlayerProvider";
 import { ShareProvider } from "./contexts/ShareContext";
 import { AlertTriangle, XCircle } from "./components/icons";
 import ReloadPrompt from "./components/ReloadPrompt";
@@ -49,6 +50,12 @@ const SsoComplete = lazy(() => import("./pages/SsoComplete"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Welcome = lazy(() => import("./pages/Welcome"));
 const SearchResultsPage = lazy(routeModules.search);
+const PodcastsPage = lazy(routeModules.podcasts);
+const PodcastLibraryPage = lazy(routeModules.podcastLibrary);
+const PodcastHistoryPage = lazy(routeModules.podcastHistory);
+const PodcastSearchPage = lazy(routeModules.podcastSearch);
+const PodcastCategoryPage = lazy(routeModules.podcastCategory);
+const PodcastDetailPage = lazy(routeModules.podcast);
 const DiscoverPage = lazy(routeModules.discover);
 const ShowsPage = lazy(routeModules.shows);
 const LibraryPage = lazy(routeModules.library);
@@ -366,6 +373,12 @@ const appRoutes = createRoutesFromElements(
             </PermissionRoute>
           }
         />
+        <Route path="/podcasts" element={<PodcastsPage />} />
+        <Route path="/podcasts/library" element={<PodcastLibraryPage />} />
+        <Route path="/podcasts/history" element={<PodcastHistoryPage />} />
+        <Route path="/podcasts/search" element={<PodcastSearchPage />} />
+        <Route path="/podcasts/category/:category" element={<PodcastCategoryPage />} />
+        <Route path="/podcasts/:id" element={<PodcastDetailPage />} />
         <Route path="/activity" element={<ActivityRootRedirect />} />
         <Route path="/activity/:view" element={<ActivityPage />} />
         <Route path="/artist/:mbid/albums" element={<ArtistReleaseListPage mode="releases" />} />
@@ -398,11 +411,13 @@ function App() {
       <ToastProvider>
         <AuthProvider>
           <AudioQueueProvider>
-            <ShareProvider>
-              <RouterProvider router={appRouter} />
-              <ThemeSync />
-              {!HOSTED && <ReloadPrompt />}
-            </ShareProvider>
+            <PodcastPlayerProvider>
+              <ShareProvider>
+                <RouterProvider router={appRouter} />
+                <ThemeSync />
+                {!HOSTED && <ReloadPrompt />}
+              </ShareProvider>
+            </PodcastPlayerProvider>
           </AudioQueueProvider>
         </AuthProvider>
       </ToastProvider>

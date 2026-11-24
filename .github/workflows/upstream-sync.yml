@@ -1,0 +1,81 @@
+name: Upstream sync
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: lklynet/aurral
+  BRANCH: sync/upstream
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "https://github.com/${UPSTREAM}.git"
+          git fetch upstream main
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "state=current" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git checkout -B "${BRANCH}" origin/main
+          if git merge --no-edit upstream/main; then
+            echo "state=clean" >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "state=conflict"
+              echo "files<<EOF"
+              git diff --name-only --diff-filter=U
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            git merge --abort
+          fi
+
+      - name: Open or update the pull request
+        if: steps.merge.outputs.state == 'clean'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
+        run: |
+          git push --force origin "${BRANCH}"
+          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq length)" = "0" ]; then
+            gh pr create --base main --head "${BRANCH}" \
+              --title "chore: sync upstream" \
+              --body "Merges ${UPSTREAM} main. Merge this with a merge commit, not a squash, so the next sync only brings in new changes."
+          fi
+
+      - name: Report conflicts
+        if: steps.merge.outputs.state == 'conflict'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILES: ${{ steps.merge.outputs.files }}
+        run: |
+          if [ "$(gh issue list --state open --search 'Upstream sync has conflicts in:title' --json number --jq length)" != "0" ]; then
+            exit 0
+          fi
+          gh issue create \
+            --title "Upstream sync has conflicts" \
+            --body "$(printf 'Merging %s main into main conflicts in:\n\n%s\n\nResolve it locally:\n\n    git fetch upstream\n    git switch -c sync/upstream origin/main\n    git merge upstream/main\n\nFix the conflicts, push the branch, and open a pull request.' "${UPSTREAM}" "${FILES}")"

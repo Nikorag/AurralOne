@@ -179,6 +179,26 @@ const SYSTEM_TASKS = {
       await runScheduledFlowRefresh();
     },
   },
+  "podcast-refresh-due": {
+    queue: "maintenance",
+    label: "Podcast refresh check",
+    description: "Queues followed podcast feeds that are due for a refresh.",
+    schedule: { everyMs: 15 * MINUTE },
+    async run() {
+      const { queueDueRefreshes } = await import("../podcasts/refresh.ts");
+      queueDueRefreshes();
+    },
+  },
+  "podcast-storage-reconcile": {
+    queue: "maintenance",
+    label: "Podcast storage check",
+    description: "Removes unused podcast files and fixes storage totals.",
+    schedule: { everyMs: 6 * HOUR },
+    async run() {
+      const { reconcilePodcastStorage } = await import("../podcasts/refresh.ts");
+      await reconcilePodcastStorage();
+    },
+  },
   "session-cleanup": {
     queue: "maintenance",
     label: "Session cleanup",
