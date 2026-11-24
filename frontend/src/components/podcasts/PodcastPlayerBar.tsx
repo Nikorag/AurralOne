@@ -1,5 +1,5 @@
-import { useId, useState } from "react";
-import { Pause, Play, RotateCcw, SkipBack, SkipForward, Stop, X } from "../icons";
+import { useEffect, useId, useState } from "react";
+import { Moon, Pause, Play, RotateCcw, SkipBack, SkipForward, Stop, X } from "../icons";
 import { ModalBackdrop } from "../ModalBackdrop";
 import RouteLink from "../RouteLink";
 import { Select } from "../Select";
@@ -13,10 +13,43 @@ import {
   usePodcastPosition,
 } from "../../contexts/podcastPlayerContext";
 import { formatPlaybackTime } from "../../utils/playbackTime";
+import {
+  SLEEP_MINUTES,
+  sleepLabel,
+  sleepOptionOf,
+  sleepRemaining,
+  type SleepOption,
+} from "../../utils/podcastSleep";
 import { PodcastArt, podcastPath } from "./podcastUi";
 import { formatLength } from "./podcastFormat";
 
 const rateLabel = (rate: number) => `${rate}×`;
+
+const SLEEP_OPTIONS: SleepOption[] = ["off", ...SLEEP_MINUTES, "episode"];
+
+function useNow(active: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return undefined;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [active]);
+  return now;
+}
+
+function SleepChip({ onClick }: { onClick: () => void }) {
+  const { sleep } = usePodcastPlayer();
+  const now = useNow(sleep.mode === "time");
+  if (sleep.mode === "off") return null;
+  const remaining = sleepRemaining(sleep, now);
+  return (
+    <button type="button" className="btn btn-ghost btn-xs" onClick={onClick}>
+      <Moon className="artist-icon-sm" aria-hidden="true" />
+      {remaining === null ? "End of episode" : formatPlaybackTime(remaining)}
+    </button>
+  );
+}
 
 function Seek() {
   const player = usePodcastPlayer();
@@ -139,6 +172,15 @@ export function PodcastNowPlaying({ onClose }: { onClose: () => void }) {
               value={player.rate}
               options={PLAYBACK_RATES.map((rate) => ({ value: rate, label: rateLabel(rate) }))}
               onChange={player.setRate}
+            />
+          </label>
+          <label>
+            Sleep timer{" "}
+            <Select
+              aria-label="Sleep timer"
+              value={sleepOptionOf(player.sleep, Date.now())}
+              options={SLEEP_OPTIONS.map((value) => ({ value, label: sleepLabel(value) }))}
+              onChange={player.setSleep}
             />
           </label>
           <label>
@@ -333,6 +375,7 @@ export function PodcastPlayerBar() {
         </div>
 
         <div className="global-player__side">
+          <SleepChip onClick={() => setOpen(true)} />
           {player.queue.length ? (
             <button type="button" className="btn btn-ghost btn-xs" onClick={() => setOpen(true)}>
               Up next · {player.queue.length}

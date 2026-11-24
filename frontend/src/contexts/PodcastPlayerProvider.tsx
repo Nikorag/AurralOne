@@ -13,6 +13,12 @@ import { invalidatePodcasts, type PodcastEpisode } from "../hooks/usePodcasts.ts
 import { buildAuthenticatedApiUrl } from "../utils/api/core.ts";
 import { podcastsClient } from "../utils/api/clients/podcasts.ts";
 import { mediaSessionArtwork } from "../utils/mediaSession.ts";
+import {
+  sleepTimerFor,
+  stopsAtEnd,
+  type SleepOption,
+  type SleepTimer,
+} from "../utils/podcastSleep.ts";
 
 const RATE_KEY = "podcastRate";
 const SKIP_KEY = "podcastSkip";
@@ -84,6 +90,9 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
   const [rate, setRateState] = useState(() => readNumber(RATE_KEY, 1));
   const [skipIntervals, setSkipIntervals] = useState(readSkip);
   const [lastPlayer, setLastPlayer] = useState<"podcast" | "music">("podcast");
+  const [sleep, setSleepState] = useState<SleepTimer>({ mode: "off" });
+  const sleepRef = useRef(sleep);
+  sleepRef.current = sleep;
 
   const episodeRef = useRef<PodcastEpisode | null>(null);
   const queueRef = useRef<PodcastEpisode[]>([]);
@@ -227,7 +236,8 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       save(true);
       refreshLists();
-      if (queueRef.current.length) playNext();
+      if (stopsAtEnd(sleepRef.current)) setSleepState({ mode: "off" });
+      else if (queueRef.current.length) playNext();
     };
     const onError = () => {
       if (!audio.src || !episodeRef.current) return;
@@ -284,6 +294,23 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
     audio.volume = music.volume;
     audio.muted = music.muted;
   }, [audio, music.volume, music.muted]);
+
+  useEffect(() => {
+    if (sleep.mode !== "time") return undefined;
+    const timer = window.setTimeout(
+      () => {
+        audio.pause();
+        setSleepState({ mode: "off" });
+      },
+      Math.max(0, sleep.endsAt - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [audio, sleep]);
+
+  const setSleep = useCallback(
+    (option: SleepOption) => setSleepState(sleepTimerFor(option, Date.now())),
+    [],
+  );
 
   const musicWasPlaying = useRef(music.isPlaying);
   useEffect(() => {
@@ -367,6 +394,7 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setIsLoading(false);
     setError(null);
+    setSleepState({ mode: "off" });
     snapshot.current = { position: 0, duration: 0 };
     for (const listener of listeners.current) listener();
     refreshLists();
@@ -417,6 +445,8 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       skipBack: skipIntervals.back,
       skipForward: skipIntervals.forward,
       showBar,
+      sleep,
+      setSleep,
       isCurrent: (episodeId) => episode?.id === episodeId,
       play,
       toggle,
@@ -445,8 +475,10 @@ export function PodcastPlayerProvider({ children }: { children: ReactNode }) {
       seek,
       setRate,
       setSkip,
+      setSleep,
       showBar,
       skip,
+      sleep,
       skipIntervals,
       stop,
       toggle,

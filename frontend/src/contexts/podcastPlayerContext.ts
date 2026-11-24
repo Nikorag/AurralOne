@@ -1,5 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { PodcastEpisode } from "../hooks/usePodcasts.ts";
+import type { SleepOption, SleepTimer } from "../utils/podcastSleep.ts";
 
 export const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 export const SKIP_BACK_OPTIONS = [10, 15, 30, 45, 60] as const;
@@ -15,6 +16,8 @@ export type PodcastPlayerValue = {
   skipBack: number;
   skipForward: number;
   showBar: boolean;
+  sleep: SleepTimer;
+  setSleep: (option: SleepOption) => void;
   isCurrent: (episodeId: number) => boolean;
   play: (episode: PodcastEpisode) => void;
   toggle: () => void;
