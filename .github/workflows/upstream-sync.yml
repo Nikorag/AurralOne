@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
 
 concurrency:
   group: upstream-sync
@@ -70,12 +69,8 @@ jobs:
       - name: Report conflicts
         if: steps.merge.outputs.state == 'conflict'
         env:
-          GH_TOKEN: ${{ github.token }}
           FILES: ${{ steps.merge.outputs.files }}
         run: |
-          if [ "$(gh issue list --state open --search 'Upstream sync has conflicts in:title' --json number --jq length)" != "0" ]; then
-            exit 0
-          fi
-          gh issue create \
-            --title "Upstream sync has conflicts" \
-            --body "$(printf 'Merging %s main into main conflicts in:\n\n%s\n\nResolve it locally:\n\n    git fetch upstream\n    git switch -c sync/upstream origin/main\n    git merge upstream/main\n\nFix the conflicts, push the branch, and open a pull request.' "${UPSTREAM}" "${FILES}")"
+          echo "::error title=Upstream sync has conflicts::${FILES//$'\n'/, }"
+          echo "Resolve it locally: git fetch upstream, git switch -c sync/upstream origin/main, git merge upstream/main"
+          exit 1
