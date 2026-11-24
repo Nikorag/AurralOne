@@ -11,6 +11,7 @@ const [isolatedState, { db }, { dbOps }, { http }, notify, refresh, follows] =
     () => import("../../backend/services/podcasts/notify.ts"),
     () => import("../../backend/services/podcasts/refresh.ts"),
     () => import("../../backend/services/podcasts/follows.ts"),
+    () => import("../../backend/services/notificationService.ts"),
   );
 
 const NOW = Date.now();

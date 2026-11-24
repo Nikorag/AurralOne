@@ -1,0 +1,179 @@
+name: AurralOne CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurralone-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Check and build docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fail-on-severity: high
+
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version-file: .nvmrc
+          cache: true
+          run-install: |
+            - args: ["--frozen-lockfile"]
+
+      - run: vp run check
+
+      - run: vp run docs:build
+
+  unit-tests:
+    name: Unit tests (${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/install-ffmpeg
+
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version-file: .nvmrc
+          cache: true
+          run-install: |
+            - args: ["--frozen-lockfile"]
+
+      - run: vp run test --shard=${{ matrix.shard }}/2
+
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/install-ffmpeg
+
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version-file: .nvmrc
+          cache: true
+          run-install: |
+            - args: ["--frozen-lockfile"]
+
+      - run: vp run test:integration
+
+  changes:
+    name: Detect image changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.diff.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - id: diff
+        run: |
+          if git diff --quiet HEAD^1 HEAD -- backend frontend lib docs/package.json package.json pnpm-lock.yaml pnpm-workspace.yaml .nvmrc Dockerfile .dockerignore .github/workflows/aurralone-ci.yml; then
+            echo "image=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "image=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+  container:
+    name: Production container
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: docker build --check .
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          load: true
+          tags: aurralone-ci:test
+          platforms: linux/amd64
+          build-args: |
+            APP_VERSION=ci+${{ github.sha }}
+            GITHUB_REPO=${{ github.repository }}
+            RELEASE_CHANNEL=preview
+          cache-from: type=gha,scope=aurralone-ci
+          cache-to: type=gha,mode=max,scope=aurralone-ci
+
+      - name: Smoke-test image
+        run: |
+          container="aurralone-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'docker logs "$container"; docker rm -f "$container" >/dev/null' EXIT
+          docker run --detach --name "$container" --env PUID=3007 --env PGID=3001 aurralone-ci:test
+
+          for _ in {1..30}; do
+            if docker exec "$container" node -e \
+              'fetch("http://127.0.0.1:3001/api/health").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'; then
+              break
+            fi
+            sleep 2
+          done
+
+          docker exec "$container" node --input-type=module -e '
+            import fs from "node:fs/promises";
+            const server = (await fs.readFile("/proc/1/task/1/children", "utf8")).trim();
+            const status = await fs.readFile(`/proc/${server}/status`, "utf8");
+            const groups = status.match(/^Groups:\s*(.*)$/m)?.[1].trim().split(/\s+/) ?? [];
+            if (!groups.includes("3001")) throw new Error(`PGID 3001 missing from process groups:\n${status}`);
+            const health = await (await fetch("http://127.0.0.1:3001/api/health")).json();
+            if (health.matcher?.available !== true || !health.matcher?.policyVersion) {
+              throw new Error(`Native matcher unavailable: ${JSON.stringify(health.matcher)}`);
+            }
+          '
+
+  validate:
+    if: ${{ !cancelled() }}
+    needs: [checks, unit-tests, integration-tests, changes, container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every job
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          IMAGE: ${{ needs.changes.outputs.image }}
+        run: |
+          for result in $RESULTS; do
+            if [ "$result" = "skipped" ] && [ "$IMAGE" = "false" ]; then
+              continue
+            fi
+            if [ "$result" != "success" ]; then
+              echo "Not every job succeeded: $RESULTS"
+              exit 1
+            fi
+          done
