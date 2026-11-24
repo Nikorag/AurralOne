@@ -171,6 +171,23 @@ export async function downloadOpml() {
   URL.revokeObjectURL(url);
 }
 
+export const usePodcastChapters = (episodeId: number | null) =>
+  useQuery({
+    queryKey: [...ROOT, "chapters", episodeId] as const,
+    queryFn: async ({ signal }) =>
+      (
+        await parseResponse(
+          podcastsClient.episodes[":id"].chapters.$get(
+            { param: { id: String(episodeId) } },
+            { init: { signal } },
+          ),
+        )
+      ).chapters,
+    enabled: episodeId !== null,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
+
 export const usePodcastAdminStatus = () =>
   useQuery({
     queryKey: podcastKeys.admin,

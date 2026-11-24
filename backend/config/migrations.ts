@@ -620,6 +620,12 @@ const createPodcastImports: Migration = (db) =>
     );
   `);
 
+const addPodcastChapters: Migration = (db) => {
+  addColumn(db, "podcast_episodes", "chapters_url", "TEXT");
+  addColumn(db, "podcast_episodes", "chapters_json", "TEXT");
+  addColumn(db, "podcast_episodes", "chapters_checked_at", "INTEGER");
+};
+
 export const migrations: Migration[] = [
   createAurral3Schema,
   indexFinishedDownloadNames,
@@ -657,6 +663,7 @@ export const migrations: Migration[] = [
   createPodcasts,
   trackPodcastDownloadProgress,
   createPodcastImports,
+  addPodcastChapters,
 ];
 
 export function migrate(db: Database.Database, steps: readonly Migration[] = migrations) {

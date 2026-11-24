@@ -528,6 +528,9 @@ export interface PodcastEpisodesRow {
   season: number | null;
   episode_number: number | null;
   created_at: number;
+  chapters_url: string | null;
+  chapters_json: string | null;
+  chapters_checked_at: number | null;
 }
 
 export interface PodcastFollowsRow {

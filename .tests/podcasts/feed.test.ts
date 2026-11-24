@@ -7,7 +7,7 @@ import {
 } from "../../backend/services/podcasts/feed.ts";
 
 const feed = (items: string) => `<?xml version="1.0"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Show &amp; Tell</title>
     <description>&lt;p&gt;About the show&lt;/p&gt;</description>
@@ -51,6 +51,7 @@ test("reads show details and audio episodes from a podcast feed", () => {
       enclosureBytes: 1234,
       season: 2,
       episodeNumber: 5,
+      chaptersUrl: null,
     },
   ]);
 });
@@ -84,4 +85,20 @@ test("reads durations as seconds, clock times, or nothing", () => {
   assert.equal(parseDuration("5:30"), 330);
   assert.equal(parseDuration("1:00:00"), 3600);
   assert.equal(parseDuration("soon"), null);
+});
+
+test("a Podcasting 2.0 chapters link is read, and made absolute", () => {
+  const parsed = parsePodcastFeed(
+    feed(`
+      <item><title>A</title><guid>a</guid>
+        <enclosure url="https://cdn.example.com/a.mp3" type="audio/mpeg"/>
+        <podcast:chapters url="/chapters/a.json" type="application/json+chapters"/></item>
+      <item><title>B</title><guid>b</guid>
+        <enclosure url="https://cdn.example.com/b.mp3" type="audio/mpeg"/></item>`),
+    "https://example.com/feed.xml",
+  );
+  assert.deepEqual(
+    parsed.episodes.map((episode) => episode.chaptersUrl),
+    ["https://example.com/chapters/a.json", null],
+  );
 });

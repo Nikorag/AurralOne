@@ -21,6 +21,7 @@ export interface ParsedEpisode {
   enclosureBytes: number | null;
   season: number | null;
   episodeNumber: number | null;
+  chaptersUrl: string | null;
 }
 
 export interface ParsedPodcast {
@@ -91,7 +92,12 @@ const itunesDetails = (xml: string) => {
   const [channel] = asNodes(asNodes(root?.rss)[0]?.channel);
   const items = new Map<
     string,
-    { duration: number | null; season: number | null; episode: number | null }
+    {
+      duration: number | null;
+      season: number | null;
+      episode: number | null;
+      chapters: string | null;
+    }
   >();
   for (const item of asNodes(channel?.item)) {
     const [enclosure] = asNodes(item.enclosure);
@@ -103,6 +109,7 @@ const itunesDetails = (xml: string) => {
       duration: parseDuration(item["itunes:duration"]),
       season: positiveInt(item["itunes:season"]),
       episode: positiveInt(item["itunes:episode"]),
+      chapters: asNodes(item["podcast:chapters"])[0]?.["@_url"]?.toString() ?? null,
     });
   }
   return { author: text(channel?.["itunes:author"], 200) || null, items };
@@ -150,6 +157,7 @@ export function parsePodcastFeed(xml: string, feedUrl: string): ParsedPodcast {
       enclosureBytes: enclosure.length ?? null,
       season: itunes?.season ?? null,
       episodeNumber: itunes?.episode ?? null,
+      chaptersUrl: httpUrl(itunes?.chapters, feedUrl),
     });
     if (episodes.length >= MAX_EPISODES) break;
   }

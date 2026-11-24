@@ -54,6 +54,12 @@ const statements = {
   episodeByEnclosure: db.prepare<[number, string], Pick<PodcastEpisodesRow, "id">>(
     "SELECT id FROM podcast_episodes WHERE podcast_id = ? AND enclosure_url = ? LIMIT 1",
   ),
+  chaptersUrl: db.prepare<[string | null, string | null, string | null, number]>(
+    `UPDATE podcast_episodes SET
+       chapters_json = CASE WHEN chapters_url IS ? THEN chapters_json END,
+       chapters_checked_at = CASE WHEN chapters_url IS ? THEN chapters_checked_at END,
+       chapters_url = ? WHERE id = ?`,
+  ),
   insertEpisode: db.prepare<
     [
       number,
@@ -164,6 +170,12 @@ const storeFeed = db.transaction(
       ] as const;
       if (existing) {
         statements.updateEpisode.run(...values, existing.id);
+        statements.chaptersUrl.run(
+          episode.chaptersUrl,
+          episode.chaptersUrl,
+          episode.chaptersUrl,
+          existing.id,
+        );
       } else {
         const result = statements.insertEpisode.run(
           podcastId,
@@ -180,7 +192,14 @@ const storeFeed = db.transaction(
           episode.episodeNumber,
           now,
         );
-        added.push(Number(result.lastInsertRowid));
+        const insertedId = Number(result.lastInsertRowid);
+        statements.chaptersUrl.run(
+          episode.chaptersUrl,
+          episode.chaptersUrl,
+          episode.chaptersUrl,
+          insertedId,
+        );
+        added.push(insertedId);
       }
     }
     return { podcastId, newEpisodeIds: added };

@@ -14,6 +14,8 @@ import {
   usePodcastPosition,
 } from "../../contexts/podcastPlayerContext";
 import { formatPlaybackTime } from "../../utils/playbackTime";
+import { chapterIndexAt } from "../../utils/podcastChapters";
+import { usePodcastChapters } from "../../hooks/usePodcasts";
 import {
   SLEEP_MINUTES,
   sleepLabel,
@@ -59,34 +61,82 @@ function Seek() {
   const [scrub, setScrub] = useState<number | null>(null);
   const shown = scrub ?? position;
   const remaining = Math.max(0, duration - shown);
+  const chapters = usePodcastChapters(player.episode?.id ?? null).data ?? [];
   return (
     <div className="podcast-player__progress">
       <span className="podcast-player__time">{formatPlaybackTime(shown)}</span>
-      <input
-        type="range"
-        className="podcast-player__seek"
-        min={0}
-        max={Math.max(1, Math.floor(duration))}
-        step={1}
-        value={Math.min(shown, Math.max(1, duration))}
-        disabled={!duration}
-        aria-label="Seek"
-        aria-valuetext={`${formatPlaybackTime(shown)} of ${formatPlaybackTime(duration)}`}
-        onChange={(event) => setScrub(Number(event.target.value))}
-        onPointerUp={() => {
-          if (scrub !== null) player.seek(scrub);
-          setScrub(null);
-        }}
-        onKeyUp={() => {
-          if (scrub !== null) player.seek(scrub);
-          setScrub(null);
-        }}
-        onBlur={() => setScrub(null)}
-      />
+      <span className="podcast-player__track">
+        {duration
+          ? chapters
+              .slice(1)
+              .map((chapter) => (
+                <span
+                  key={chapter.startSeconds}
+                  className="podcast-player__tick"
+                  aria-hidden="true"
+                  style={{ left: `${Math.min(100, (chapter.startSeconds / duration) * 100)}%` }}
+                />
+              ))
+          : null}
+        <input
+          type="range"
+          className="podcast-player__seek"
+          min={0}
+          max={Math.max(1, Math.floor(duration))}
+          step={1}
+          value={Math.min(shown, Math.max(1, duration))}
+          disabled={!duration}
+          aria-label="Seek"
+          aria-valuetext={`${formatPlaybackTime(shown)} of ${formatPlaybackTime(duration)}`}
+          onChange={(event) => setScrub(Number(event.target.value))}
+          onPointerUp={() => {
+            if (scrub !== null) player.seek(scrub);
+            setScrub(null);
+          }}
+          onKeyUp={() => {
+            if (scrub !== null) player.seek(scrub);
+            setScrub(null);
+          }}
+          onBlur={() => setScrub(null)}
+        />
+      </span>
       <span className="podcast-player__time">
         {duration ? `-${formatPlaybackTime(remaining)}` : "--:--"}
       </span>
     </div>
+  );
+}
+
+function ChapterLabel({ fallback }: { fallback: string }) {
+  const player = usePodcastPlayer();
+  const { position } = usePodcastPosition();
+  const chapters = usePodcastChapters(player.episode?.id ?? null).data ?? [];
+  const chapter = chapters[chapterIndexAt(chapters, position)];
+  return <>{chapter ? `${chapter.title} · ${fallback}` : fallback}</>;
+}
+
+function ChapterList() {
+  const player = usePodcastPlayer();
+  const { position } = usePodcastPosition();
+  const chapters = usePodcastChapters(player.episode?.id ?? null).data ?? [];
+  if (!chapters.length) return null;
+  const current = chapterIndexAt(chapters, position);
+  return (
+    <section className="podcast-now__queue" aria-label="Chapters">
+      <h4 className="podcast-section__title">Chapters</h4>
+      {chapters.map((chapter, index) => (
+        <button
+          key={chapter.startSeconds}
+          type="button"
+          className={`podcast-chapter${index === current ? " is-current" : ""}`}
+          aria-current={index === current ? "true" : undefined}
+          onClick={() => player.seek(chapter.startSeconds)}
+        >
+          <span className="podcast-player__time">{formatPlaybackTime(chapter.startSeconds)}</span>
+          <span className="podcast-now__queue-title">{chapter.title}</span>
+        </button>
+      ))}
+    </section>
   );
 }
 
@@ -203,6 +253,7 @@ export function PodcastNowPlaying({ onClose }: { onClose: () => void }) {
             />
           </label>
         </div>
+        <ChapterList />
         <div className="podcast-settings">
           <div className="podcast-settings__row">
             <span>
@@ -305,7 +356,9 @@ export function PodcastPlayerBar() {
           />
           <span className="global-player__mini-copy">
             <span className="global-player__title">{episode.title}</span>
-            <span className="global-player__subtitle">{player.error || episode.podcastTitle}</span>
+            <span className="global-player__subtitle">
+              {player.error || <ChapterLabel fallback={episode.podcastTitle} />}
+            </span>
           </span>
         </button>
         <button
@@ -355,7 +408,9 @@ export function PodcastPlayerBar() {
                 {episode.title}
               </RouteLink>
             </span>
-            <span className="global-player__subtitle">{episode.podcastTitle}</span>
+            <span className="global-player__subtitle">
+              <ChapterLabel fallback={episode.podcastTitle} />
+            </span>
             {player.error ? (
               <span className="global-player__error" role="alert">
                 {player.error}

@@ -46,6 +46,7 @@ import {
 import { db } from "../config/db-sqlite.ts";
 import { sendAudioFile } from "../services/audioFileStream.ts";
 import { streamEpisode } from "../services/podcasts/stream.ts";
+import { getChapters } from "../services/podcasts/chapters.ts";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { sendViaNode } from "./shared/sendViaNode.ts";
 
@@ -243,6 +244,11 @@ export default new Hono<AppEnv>()
     if (!row?.path) return c.json(notFound, 404);
     const sent = await sendViaNode(c, sendAudioFile, mediaStore.resolve(row.path));
     return sent || c.json(notFound, 404);
+  })
+  .get("/episodes/:id/chapters", async (c) => {
+    const episodeId = id(c.req.param("id")) ?? 0;
+    if (!getEpisode(c.var.user.id, episodeId)) return c.json(notFound, 404);
+    return c.json({ chapters: await getChapters(episodeId) }, 200);
   })
   .get("/episodes/:id/stream", async (c) => {
     const episodeId = id(c.req.param("id")) ?? 0;
