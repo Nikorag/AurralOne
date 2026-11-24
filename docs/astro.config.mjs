@@ -73,6 +73,7 @@ export default defineConfig({
             { slug: "integrations/slskd" },
             { slug: "integrations/ytdlp" },
             { slug: "integrations/qbittorrent" },
+            { slug: "integrations/transmission" },
             { slug: "integrations/usenet" },
             { slug: "integrations/deemix" },
             { slug: "integrations/tidarr" },

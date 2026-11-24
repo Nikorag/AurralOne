@@ -94,6 +94,14 @@ const defaultSettings = {
       category: "aurral",
       priority: 30,
     },
+    transmission: {
+      enabled: false,
+      url: "",
+      username: "",
+      password: "",
+      category: "aurral",
+      priority: 30,
+    },
     ytdlp: {
       enabled: true,
       priority: 50,

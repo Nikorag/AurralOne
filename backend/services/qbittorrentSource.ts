@@ -22,7 +22,7 @@ import { orderAdvertisedQualityCandidates } from "./qualityProfileModel.ts";
 import { getQualityProfile } from "./qualityProfile.ts";
 import { qbittorrentClient } from "./qbittorrentClient.ts";
 
-const releaseData = v.object({
+export const releaseData = v.object({
   downloadUrl: v.nullish(v.string()),
   magnetUrl: v.nullish(v.string()),
 });
@@ -34,7 +34,7 @@ const IMPORTED_TAG = "aurral-imported";
 
 const failure = (error: unknown) => asAppError(error)?.message || String(error);
 
-async function searchReleases(album: AlbumQuery, upgrade: Upgrade) {
+export async function searchReleases(album: AlbumQuery, upgrade: Upgrade) {
   const indexers = await prowlarrClient.getEnabledTorrentIndexers();
   if (indexers.length === 0)
     throw new DownloadSourceError("Prowlarr has no torrent indexers turned on");
@@ -85,7 +85,7 @@ async function searchReleases(album: AlbumQuery, upgrade: Upgrade) {
 
 // Like Lidarr, Aurral fetches the torrent itself, so qBittorrent never needs
 // to reach Prowlarr. Prowlarr links to a magnet through a redirect.
-async function fetchTorrent(data: v.InferOutput<typeof releaseData>) {
+export async function fetchTorrent(data: v.InferOutput<typeof releaseData>) {
   const link = data.downloadUrl || data.magnetUrl || "";
   if (link.startsWith("magnet:")) return { magnet: link };
   const response = await http.get(link, {
