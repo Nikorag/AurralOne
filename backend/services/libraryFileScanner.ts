@@ -36,10 +36,12 @@ import {
   readAurralIdentity,
   type AurralIdentity,
   type DownloadTrackFields,
+  withJobRelease,
 } from "./downloadUtils.ts";
 import { logger, safeLogDiagnostic } from "./logger.ts";
 import { isPathWithin } from "./libraryFolders.ts";
 import { trackArtistCreditFromTags } from "../../lib/artistCredit.ts";
+import { VARIOUS_ARTISTS_MBID, isVariousArtistsCredit } from "./trackMatching/titleText.ts";
 
 type ScannedMetadata = {
   common?: Partial<ICommonTagsResult>;
@@ -130,7 +132,9 @@ const applyMetadataEnrichment = (
   if ((!enrichment || typeof enrichment !== "object") && Object.keys(embedded).length === 0) {
     return metadata;
   }
-  const trusted: DownloadTrackFields = { ...embedded, ...(enrichment || {}) };
+  const trusted = withJobRelease({ ...embedded, ...(enrichment || {}) });
+  const taggedGroup = normalizeMbid(common.musicbrainz_releasegroupid);
+  const otherGroup = taggedGroup !== null && taggedGroup !== normalizeMbid(trusted.albumMbid);
   const fallbackFields = {
     albumartist: trusted.artistName,
     artist: trusted.artistName,
@@ -141,7 +145,7 @@ const applyMetadataEnrichment = (
     disk: trusted.discNumber,
     musicbrainz_artistid: trusted.artistMbid,
     musicbrainz_albumartistid: trusted.artistMbid,
-    musicbrainz_albumid: trusted.releaseMbid,
+    musicbrainz_albumid: otherGroup ? null : trusted.releaseMbid,
     musicbrainz_releasegroupid: trusted.albumMbid,
     musicbrainz_recordingid: trusted.trackMbid,
   };
@@ -183,7 +187,9 @@ function buildMetadataRecord(metadata: ScannedMetadata, filePath: string, rootPa
             .filter((mbid) => mbid !== null),
         ),
       ]
-    : [normalizeMbid(common.musicbrainz_artistid)].filter((mbid) => mbid !== null);
+    : isVariousArtistsCredit(text(common.albumartist))
+      ? [VARIOUS_ARTISTS_MBID]
+      : [normalizeMbid(common.musicbrainz_artistid)].filter((mbid) => mbid !== null);
   const artistMbid = artistMbids.length === 1 ? artistMbids[0] : null;
   const albumMbid = normalizeMbid(common.musicbrainz_albumid);
   const releaseGroupMbid = normalizeMbid(common.musicbrainz_releasegroupid);
@@ -563,6 +569,7 @@ export async function scanMusicRoot({
             durationMs: record.durationMs,
             quality: record.quality,
             artistTag: record.trackArtistName,
+            releaseTagged: !untagged,
             scanId,
           });
           if (before) releaseLibraryFileRows(before, { albumId: album.id, trackId: track.id });
