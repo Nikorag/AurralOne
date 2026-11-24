@@ -30,4 +30,5 @@ export const notCovered = [
     "missing" in coverage ? [`${name}: ${coverage.missing}`] : [],
   ),
   "plex: Plex needs a plex.tv account",
+  "podcast feeds: Aurral reads feeds and episodes from the publisher, past Eden's proxy",
 ];

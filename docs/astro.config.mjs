@@ -56,6 +56,7 @@ export default defineConfig({
             { slug: "using/discover" },
             { slug: "using/library" },
             { slug: "using/player" },
+            { slug: "using/podcasts" },
             { slug: "using/playlists" },
             { slug: "using/flows" },
             { slug: "using/playlist-imports" },
