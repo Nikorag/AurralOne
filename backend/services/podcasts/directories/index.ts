@@ -39,5 +39,8 @@ async function gather(load: (directory: PodcastDirectory) => Promise<DirectoryPo
 export const searchPodcasts = (term: string, limit = 25) =>
   gather((directory) => directory.search(term, limit));
 
+export const recentPodcasts = (limit = 25) =>
+  gather((directory) => directory.recent?.(limit) ?? Promise.resolve([]));
+
 export const trendingPodcasts = (category: string | undefined, limit = 25) =>
   gather((directory) => directory.trending({ category, limit }));

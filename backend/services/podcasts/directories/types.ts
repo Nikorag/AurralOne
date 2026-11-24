@@ -15,6 +15,7 @@ export interface PodcastDirectory {
   available: () => boolean;
   search: (term: string, limit: number) => Promise<DirectoryPodcast[]>;
   trending: (options: { category?: string; limit: number }) => Promise<DirectoryPodcast[]>;
+  recent?: (limit: number) => Promise<DirectoryPodcast[]>;
 }
 
 export const PODCAST_CATEGORIES = [

@@ -81,4 +81,6 @@ export const podcastIndex: PodcastDirectory = {
         ...(findCategory(category) && { cat: findCategory(category)?.label ?? "" }),
       }),
     ),
+  recent: (limit) =>
+    cached(`recent:${limit}`, () => get("/recent/newfeeds", { max: limit, lang: "en" })),
 };
