@@ -28,6 +28,7 @@
   --aurral-text-muted: light-dark(#525252, #b3b3b3);
   --aurral-text: light-dark(#171717, #ffffff);
   --aurral-accent: light-dark(#171717, #ffffff);
+  --aurral-brand-lime: #84cc16;
   --aurral-accent-contrast: light-dark(#ffffff, #000000);
   --aurral-surface-raised: light-dark(#f1f1f1, #0e0e0e);
   --aurral-surface-popover: light-dark(#e4e4e4, #0e0e0e);
