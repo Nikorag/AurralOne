@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vite-plus/test";
-import { selectAvailableUpdate } from "../backend/services/updates.ts";
+import { feedFromRelease, selectAvailableUpdate } from "../backend/services/updates.ts";
 
 const commits = ["eeeeeee", "ddddddd", "ccccccc", "bbbbbbb"].map((sha) => ({
   sha: `${sha}${"0".repeat(33)}`,
@@ -39,4 +39,20 @@ test("a nightly newer than the feed is not offered an older build", () => {
   assert.equal(selectAvailableUpdate("nightly.512+eeeeeee", feed), null);
   assert.equal(selectAvailableUpdate("nightly.513+fffffff", feed), null);
   assert.equal(selectAvailableUpdate("2.9.0", { ...feed, stable: null }), null);
+});
+
+test("a fork's latest GitHub release becomes the stable update", () => {
+  const forkFeed = feedFromRelease({
+    tag_name: "v1.1.0",
+    html_url: "https://github.com/Nikorag/AurralOne/releases/tag/v1.1.0",
+    body: "## What's Changed\n* feat: add a thing by @a in https://github.com/x/pull/1\n",
+  });
+  assert.deepEqual(forkFeed.stable, {
+    version: "1.1.0",
+    url: "https://github.com/Nikorag/AurralOne/releases/tag/v1.1.0",
+    notes: ["feat: add a thing by @a"],
+  });
+  assert.equal(selectAvailableUpdate("1.0.0", forkFeed)?.latest, "1.1.0");
+  assert.equal(selectAvailableUpdate("1.1.0", forkFeed), null);
+  assert.equal(selectAvailableUpdate("nightly.5+abcdef0", forkFeed), null);
 });

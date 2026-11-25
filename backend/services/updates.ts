@@ -2,6 +2,7 @@ import * as v from "valibot";
 import { asAppError } from "../../lib/errors.ts";
 import {
   compareReleaseVersions,
+  extractReleaseNoteItems,
   parseNightlyVersion,
   releaseChannel,
 } from "../../lib/release-version.ts";
@@ -10,9 +11,16 @@ import { dbOps } from "../db/helpers/index.ts";
 import { logger } from "./logger.ts";
 import { SHARE_ORIGIN } from "./shareLinks/store.ts";
 
-const REPOSITORY = "lklynet/aurral";
+const UPSTREAM_REPOSITORY = "lklynet/aurral";
+const REPOSITORY = process.env.GITHUB_REPO || UPSTREAM_REPOSITORY;
 const FEED_SETTING = "updates:feed";
 const MAX_NIGHTLY_NOTES = 8;
+
+const releaseSchema = v.object({
+  tag_name: v.string(),
+  html_url: v.string(),
+  body: v.nullish(v.string()),
+});
 
 const feedSchema = v.object({
   stable: v.nullable(
@@ -58,23 +66,45 @@ export function selectAvailableUpdate(version: string, feed: UpdateFeed | null) 
   };
 }
 
+export const feedFromRelease = (release: v.InferOutput<typeof releaseSchema>): UpdateFeed => ({
+  stable: {
+    version: release.tag_name.replace(/^v/, ""),
+    url: release.html_url,
+    notes: extractReleaseNoteItems(release.body, MAX_NIGHTLY_NOTES),
+  },
+  nightly: null,
+});
+
+async function fetchFeed(everyHours: number) {
+  const ownRepository = REPOSITORY !== UPSTREAM_REPOSITORY;
+  const response = await fetch(
+    ownRepository
+      ? `https://api.github.com/repos/${REPOSITORY}/releases/latest`
+      : `${SHARE_ORIGIN}/api/updates?version=${encodeURIComponent(APP_VERSION)}&every=${everyHours}`,
+    {
+      headers: {
+        Accept: ownRepository ? "application/vnd.github+json" : "application/json",
+      },
+      signal: AbortSignal.timeout(15000),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`${ownRepository ? "GitHub" : "aurral.org"} answered ${response.status}`);
+  }
+  const body: unknown = await response.json();
+  return ownRepository ? feedFromRelease(v.parse(releaseSchema, body)) : v.parse(feedSchema, body);
+}
+
 export function getAvailableUpdate() {
   return selectAvailableUpdate(APP_VERSION, dbOps.getJSONSetting(FEED_SETTING, feedSchema));
 }
 
 export async function checkForUpdates(everyHours: number) {
-  if (!releaseChannel(APP_VERSION) || (process.env.GITHUB_REPO || REPOSITORY) !== REPOSITORY) {
-    return;
-  }
+  if (!releaseChannel(APP_VERSION)) return;
   try {
-    const response = await fetch(
-      `${SHARE_ORIGIN}/api/updates?version=${encodeURIComponent(APP_VERSION)}&every=${everyHours}`,
-      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000) },
-    );
-    if (!response.ok) throw new Error(`aurral.org answered ${response.status}`);
-    dbOps.setJSONSetting(FEED_SETTING, v.parse(feedSchema, await response.json()));
+    dbOps.setJSONSetting(FEED_SETTING, await fetchFeed(everyHours));
   } catch (error) {
-    logger.debug("system", "Could not check aurral.org for updates:", {
+    logger.debug("system", "Could not check for updates:", {
       message: asAppError(error)?.message,
     });
   }
