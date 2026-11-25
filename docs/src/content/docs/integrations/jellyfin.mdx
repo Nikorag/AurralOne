@@ -1,16 +1,16 @@
 ---
 title: Jellyfin
-description: Point Jellyfin at the Aurral Library folder and its playlist files, and import Jellyfin plays.
+description: Point Jellyfin at the Aurral Library folder and its playlist files, have Aurral ask it to scan, and import Jellyfin plays.
 ---
 
-Jellyfin is optional. Jellyfin scans the Library folder and imports the playlist files that Aurral writes for every flow and static playlist. Aurral does not connect to Jellyfin for this. To bring your Jellyfin plays into Wrapped and recommendations, connect it in **Settings > Listening**.
+Jellyfin is optional. Jellyfin scans the Library folder and imports the playlist files that Aurral writes for every flow and static playlist. Connecting it in **Settings > Listening** is also optional. It brings your Jellyfin plays into Wrapped and recommendations, and it lets Aurral ask Jellyfin to scan when new music lands.
 
 ## Setup
 
 1. Mount the same media root in Aurral and Jellyfin, at the same container path. See [Filesystem and mounts](/getting-started/storage/).
 2. In Jellyfin, add the Library folder, for example `/data/downloads/aurral`, to a music library. It can be its own library or an extra folder in your existing one.
 3. If playlists use tracks from a read-only folder, such as `/data/music`, make sure that folder is in a Jellyfin music library too.
-4. Turn on **Enable real time monitoring** for the library, so Jellyfin picks up changes without a scheduled scan.
+4. To have Jellyfin pick up new music, connect it as described in [Listening history](#listening-history), or turn on **Enable real time monitoring** for the library.
 
 ## Playlists
 
@@ -32,6 +32,8 @@ Jellyfin keeps no play history that Aurral can read on its own. The **Playback R
 3. In Aurral, open **Settings > Listening > Jellyfin**.
 4. Enter the **Server URL**, your Jellyfin **Username**, and the **API key**.
 5. Select **Connect Jellyfin**.
+
+Once connected, Aurral also asks Jellyfin to scan its libraries about 30 seconds after the last new download lands, so a burst of tracks causes one scan. If Jellyfin is unreachable, Aurral logs a warning and carries on.
 
 Aurral imports the plays that Playback Reporting recorded for that user, then checks for new plays every hour. Playback Reporting starts recording when it is installed, so plays from before then are not imported. Each Aurral user connects their own Jellyfin username. Only admins can connect a server. **Disconnect** removes the plays that Aurral imported.
 

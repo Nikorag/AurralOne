@@ -7,6 +7,7 @@ import { db } from "../config/db-sqlite.ts";
 import { decryptWithKey, encryptWithKey } from "../config/encryption.ts";
 import { getSettingsEncryptionKey } from "../db/helpers/settings.ts";
 import type { HistoryServersRow } from "../db/rows.ts";
+import { logger } from "./logger.ts";
 import { getPlexServer } from "./plex.ts";
 import type { ImportedFavorite } from "./subsonicLibraryService.ts";
 import { requestUserDiscoveryRefresh } from "./discovery/index.ts";
@@ -306,6 +307,31 @@ const jellyfin: Provider = {
     }
   },
 };
+
+const selectJellyfinServers = db.prepare<[], HistoryServersRow>(
+  "SELECT * FROM history_servers WHERE provider = 'jellyfin'",
+);
+
+export async function refreshJellyfinLibraries() {
+  const seen = new Set<string>();
+  for (const row of selectJellyfinServers.all()) {
+    const { url, secret } = connectionOf(row);
+    const key = `${url}\n${secret}`;
+    if (!url || !secret || seen.has(key)) continue;
+    seen.add(key);
+    try {
+      await http.post(`${url}/Library/Refresh`, undefined, {
+        headers: jellyfinHeaders(secret),
+        timeoutMs: TIMEOUT_MS,
+      });
+    } catch (error) {
+      logger.warn("jellyfin", "Jellyfin did not accept a library scan request", {
+        url,
+        error: asAppError(error)?.message ?? String(error),
+      });
+    }
+  }
+}
 
 const PROVIDERS: Record<LoginHistoryServer, Provider> = { navidrome, jellyfin };
 const FAVORITE_READERS: Record<

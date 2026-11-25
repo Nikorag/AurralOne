@@ -7,16 +7,27 @@ import {
 } from "../helpers/backendTestHarness.ts";
 import { createFakeNavidrome } from "../helpers/fakeNavidrome.ts";
 
-const [state, { db }, { userOps }, servers, { getPlayHistory }, plex, libraryStore] =
-  await setupIsolatedBackend(
-    "history-servers",
-    () => import("../../backend/config/db-sqlite.ts"),
-    () => import("../../backend/db/helpers/index.ts"),
-    () => import("../../backend/services/historyServers.ts"),
-    () => import("../../backend/services/playEventService.ts"),
-    () => import("../../backend/services/plex.ts"),
-    () => import("../../backend/services/libraryMediaStore.ts"),
-  );
+const [
+  state,
+  { db },
+  { userOps },
+  servers,
+  { getPlayHistory },
+  plex,
+  libraryStore,
+  { requestJellyfinScan },
+  { systemTaskQueue },
+] = await setupIsolatedBackend(
+  "history-servers",
+  () => import("../../backend/config/db-sqlite.ts"),
+  () => import("../../backend/db/helpers/index.ts"),
+  () => import("../../backend/services/historyServers.ts"),
+  () => import("../../backend/services/playEventService.ts"),
+  () => import("../../backend/services/plex.ts"),
+  () => import("../../backend/services/libraryMediaStore.ts"),
+  () => import("../../backend/services/jellyfinScan.ts"),
+  () => import("../../backend/services/jobs/queues.ts"),
+);
 
 const originalFetch = globalThis.fetch;
 const DAY = 24 * 60 * 60;
@@ -33,6 +44,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   globalThis.fetch = originalFetch;
   vi.restoreAllMocks();
 });
@@ -236,6 +248,70 @@ test("Jellyfin play times convert from the server's local clock on their own dat
     [Date.parse("2026-01-01T12:00:00Z"), Date.parse("2026-07-01T12:00:00Z")],
   );
   assert.ok(requests.includes("/user_usage_stats/submit_custom_query"));
+});
+
+const jellyfinScans = () =>
+  db
+    .prepare<[], { run_at: number }>(
+      "SELECT run_at FROM jobs WHERE kind = 'jellyfin-library-scan' AND state = 'pending'",
+    )
+    .all();
+
+test("new music asks a connected Jellyfin to scan once, after the last file lands", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.spyOn(systemTaskQueue, "start").mockImplementation(async () => undefined);
+  requestJellyfinScan();
+  assert.equal(jellyfinScans().length, 0);
+
+  const refreshes: { path: string; authorization: string | null }[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/Users") return Response.json([{ Name: "listener", Id: "user-1" }]);
+    if (url.pathname === "/Library/Refresh") {
+      refreshes.push({
+        path: `${init?.method} ${url.pathname}`,
+        authorization: new Headers(init?.headers).get("authorization"),
+      });
+      return new Response(null, { status: 204 });
+    }
+    return Response.json({ results: [["0"]] });
+  };
+  await servers.connectHistoryServer(userId, "jellyfin", {
+    url: "http://jellyfin.test",
+    username: "listener",
+    secret: "key",
+  });
+
+  requestJellyfinScan();
+  const first = jellyfinScans()[0]?.run_at ?? 0;
+  vi.setSystemTime(Date.now() + 10_000);
+  requestJellyfinScan();
+  const scans = jellyfinScans();
+  assert.equal(scans.length, 1);
+  assert.ok((scans[0]?.run_at ?? 0) > first);
+
+  await servers.refreshJellyfinLibraries();
+  assert.equal(refreshes.length, 1);
+  assert.deepEqual(
+    refreshes.map((refresh) => refresh.path),
+    ["POST /Library/Refresh"],
+  );
+  assert.match(refreshes[0]?.authorization ?? "", /Token="key"/);
+});
+
+test("a Jellyfin that refuses the scan request does not throw", async () => {
+  globalThis.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/Users") return Response.json([{ Name: "listener", Id: "user-1" }]);
+    if (url.pathname === "/Library/Refresh") return new Response("no", { status: 500 });
+    return Response.json({ results: [["0"]] });
+  };
+  await servers.connectHistoryServer(userId, "jellyfin", {
+    url: "http://jellyfin.test",
+    username: "listener",
+    secret: "key",
+  });
+  await servers.refreshJellyfinLibraries();
 });
 
 test("a Jellyfin server without Playback Reporting says so and keeps the error visible", async () => {
