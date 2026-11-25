@@ -434,3 +434,77 @@ test("error responses match the Subsonic and OpenSubsonic schemas", async () => 
   );
   assert.equal(subsonicPayload(await apiKeyWithUsername.text()).error.code, 43);
 });
+
+test("podcast responses match the Subsonic and OpenSubsonic schemas and manage followed shows", async () => {
+  const alice = db
+    .prepare<[], { id: number }>("SELECT id FROM users WHERE username = 'alice'")
+    .get();
+  assert.ok(alice);
+  db.exec(`
+    INSERT INTO podcasts (id, title, description, image_url, created_at)
+      VALUES (901, 'Schema Show', 'About the show', 'https://example.com/art.jpg', 0);
+    INSERT INTO podcast_sources (podcast_id, feed_url) VALUES (901, 'https://example.com/feed.xml');
+    INSERT INTO podcast_episodes (id, podcast_id, guid, title, description, enclosure_url, published_at, duration_seconds, created_at)
+      VALUES (9001, 901, 'g1', 'Pilot', 'First', 'https://cdn.example.com/1.mp3', 1700000000000, 1800, 0);
+    INSERT INTO podcast_follows (user_id, podcast_id, followed_at) VALUES (${alice.id}, 901, 0);
+    INSERT INTO podcast_progress (user_id, episode_id, position_seconds, played, updated_at)
+      VALUES (${alice.id}, 9001, 42, 0, 1);
+  `);
+
+  const channels = await assertValid("getPodcasts");
+  const channel = requireFixture(channels.podcasts.channel?.find((c) => c.id === "podcast:901"));
+  assert.equal(channel.episode?.[0]?.id, "podcast-episode:9001");
+  assert.equal(channel.episode?.[0]?.bookmarkPosition, 42_000);
+  assert.equal(channel.episode?.[0]?.status, "completed");
+  await assertValid("getPodcasts", { id: "podcast:901", includeEpisodes: "false" });
+  assert.equal(subsonicPayload(await call("getPodcasts", { id: "podcast:999" })).error.code, 70);
+  const newest = await assertValid("getNewestPodcasts", { count: "5" });
+  assert.equal(newest.newestPodcasts.episode?.[0]?.channelId, "podcast:901");
+
+  const folder = path.join(isolatedState.dataDir, "podcasts");
+  await mkdir(folder, { recursive: true });
+  await writeFile(
+    path.join(folder, "9001.mp3"),
+    Buffer.concat([Buffer.from("ID3"), Buffer.alloc(500)]),
+  );
+  db.exec(`INSERT INTO podcast_media (episode_id, status, path, bytes, updated_at)
+    VALUES (9001, 'downloaded', '9001.mp3', 503, 0)`);
+  assert.equal((await fetch(subsonicUrl("stream", { id: "podcast-episode:9001" }))).status, 502);
+
+  await assertValid("downloadPodcastEpisode", { id: "podcast-episode:9001" });
+  const stored = await fetch(subsonicUrl("stream", { id: "podcast-episode:9001" }));
+  assert.equal(stored.status, 200);
+  assert.equal((await stored.arrayBuffer()).byteLength, 503);
+  assert.equal((await fetch(subsonicUrl("download", { id: "podcast-episode:9001" }))).status, 200);
+  const downloaded = await assertValid("getNewestPodcasts");
+  assert.equal(downloaded.newestPodcasts.episode?.[0]?.size, 503);
+  const entitlement = db
+    .prepare<[number], { reason: string }>(
+      "SELECT reason FROM podcast_entitlements WHERE episode_id = ?",
+    )
+    .get(9001);
+  assert.equal(entitlement?.reason, "manual");
+  await assertValid("deletePodcastEpisode", { id: "podcast-episode:9001" });
+  assert.equal(
+    db.prepare("SELECT 1 FROM podcast_entitlements WHERE episode_id = 9001").get(),
+    undefined,
+  );
+  assert.equal(
+    subsonicPayload(await call("downloadPodcastEpisode", { id: "podcast-episode:404" })).error.code,
+    70,
+  );
+
+  await assertValid("refreshPodcasts");
+  await assertValid("deletePodcastChannel", { id: "podcast:901" });
+  assert.equal(db.prepare("SELECT 1 FROM podcast_follows WHERE podcast_id = 901").get(), undefined);
+  assert.equal(
+    subsonicPayload(await call("deletePodcastChannel", { id: "podcast:901" })).error.code,
+    70,
+  );
+  assert.equal(subsonicPayload(await call("createPodcastChannel")).error.code, 10);
+  assert.equal(
+    subsonicPayload(await call("createPodcastChannel", { url: "http://127.0.0.1:9/feed" })).error
+      .code,
+    0,
+  );
+});

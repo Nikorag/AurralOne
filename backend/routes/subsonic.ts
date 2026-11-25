@@ -53,6 +53,22 @@ import {
   unstarMany,
   resolveSong,
 } from "../services/subsonicLibraryService.ts";
+import {
+  addChannel,
+  deleteEpisode,
+  downloadEpisode,
+  getChannels,
+  getNewestEpisodes,
+  parseChannelId,
+  parseEpisodeId,
+  podcastArtworkSource,
+  refreshFollowedPodcasts,
+  removeChannel,
+  resolvePodcastAudio,
+} from "../services/subsonicPodcasts.ts";
+import { streamEpisode } from "../services/podcasts/stream.ts";
+import { warmPublicImageUrl } from "../services/imageProxyService.ts";
+import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { nowPlayingSongs } from "../services/localPeople.ts";
 import {
   getLibraryScanStatus,
@@ -429,6 +445,24 @@ async function handleSubsonicRequest(c: Context<AppEnv>, requestedMethod: string
   });
 
   if (method === "ping") return ok();
+  if (method === "stream" || method === "download") {
+    const episode = parseEpisodeId(getParameter(params, "id"));
+    if (episode) {
+      const audio = resolvePodcastAudio(user.id, episode);
+      if (!audio) return notFound(c, "Episode not found");
+      if (audio.kind === "file") {
+        const sent = await sendViaNode(c, sendAudioFile, audio.path);
+        return sent || notFound(c, "Episode file missing");
+      }
+      const { incoming, outgoing } = c.env;
+      c.res.headers.forEach((value, name) => outgoing.setHeader(name, value));
+      const result = await streamEpisode(audio.episodeId, incoming, outgoing);
+      if (result === "sent") return RESPONSE_ALREADY_SENT;
+      return result === "missing"
+        ? notFound(c, "Episode not found")
+        : c.body("Couldn't stream this episode", 502, { "Content-Type": "text/plain" });
+    }
+  }
   if (method === "stream") {
     const filePath = resolveStreamPath(getParameter(params, "id"), user);
     if (!filePath) return notFound(c, "Track file missing");
@@ -457,7 +491,7 @@ async function handleSubsonicRequest(c: Context<AppEnv>, requestedMethod: string
         folder: [1],
         jukeboxRole: false,
         playlistRole: hasPermission(user, "accessPlaylists"),
-        podcastRole: false,
+        podcastRole: true,
         scrobblingEnabled: true,
         settingsRole: isAdmin,
         shareRole: false,
@@ -684,7 +718,50 @@ async function handleSubsonicRequest(c: Context<AppEnv>, requestedMethod: string
     });
   }
   if (method === "getpodcasts") {
-    return ok({ podcasts: { channel: [] } });
+    const rawId = getParameter(params, "id");
+    const id = rawId ? parseChannelId(rawId) : undefined;
+    if (rawId && !id) return fail(70, "Requested data was not found");
+    const channel = getChannels(user.id, {
+      id: id ?? undefined,
+      includeEpisodes: getParameter(params, "includeEpisodes").toLowerCase() !== "false",
+    });
+    return id && channel.length === 0
+      ? fail(70, "Requested data was not found")
+      : ok({ podcasts: { channel } });
+  }
+  if (method === "getnewestpodcasts") {
+    const count = Number.parseInt(getParameter(params, "count"), 10);
+    return ok({
+      newestPodcasts: { episode: getNewestEpisodes(user.id, Number.isFinite(count) ? count : 20) },
+    });
+  }
+  if (method === "refreshpodcasts") {
+    refreshFollowedPodcasts(user.id);
+    return ok();
+  }
+  if (method === "createpodcastchannel") {
+    const url = getParameter(params, "url").trim();
+    if (!url) return fail(10, "Required parameter is missing: url");
+    try {
+      await addChannel(user.id, url);
+      return ok();
+    } catch (error) {
+      return fail(0, asAppError(error)?.message ?? "Couldn't add this feed");
+    }
+  }
+  if (method === "deletepodcastchannel") {
+    const rawId = getParameter(params, "id");
+    if (!rawId) return fail(10, "Required parameter is missing: id");
+    const id = parseChannelId(rawId);
+    return id && removeChannel(user.id, id) ? ok() : fail(70, "Requested data was not found");
+  }
+  if (method === "downloadpodcastepisode" || method === "deletepodcastepisode") {
+    const rawId = getParameter(params, "id");
+    if (!rawId) return fail(10, "Required parameter is missing: id");
+    const id = parseEpisodeId(rawId);
+    const done =
+      id && (method === "downloadpodcastepisode" ? downloadEpisode : deleteEpisode)(user.id, id);
+    return done ? ok() : fail(70, "Requested data was not found");
   }
   if (method === "getsimilarsongs" || method === "getsimilarsongs2") {
     const id = getParameter(params, "id");
@@ -851,6 +928,13 @@ async function handleSubsonicRequest(c: Context<AppEnv>, requestedMethod: string
   }
   if (method === "getcoverart") {
     const size = Number(getParameter(params, "size"));
+    const podcastArt = podcastArtworkSource(user.id, getParameter(params, "id"));
+    if (podcastArt) {
+      const artwork = await warmPublicImageUrl(podcastArt, "library");
+      if (!artwork) return notFound(c, "Cover art not found");
+      c.header("Cache-Control", "private, max-age=86400");
+      return c.redirect(artwork, 302);
+    }
     const customArtwork = resolveCustomArtwork(getParameter(params, "id"), user);
     if (customArtwork) {
       c.header("Cache-Control", "private, max-age=31536000, immutable");
