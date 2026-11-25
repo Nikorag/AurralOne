@@ -13,7 +13,7 @@ import { SHARE_ORIGIN } from "./shareLinks/store.ts";
 
 const UPSTREAM_REPOSITORY = "lklynet/aurral";
 const REPOSITORY = process.env.GITHUB_REPO || UPSTREAM_REPOSITORY;
-const FEED_SETTING = "updates:feed";
+const FEED_SETTING = `updates:feed:${REPOSITORY}`;
 const MAX_NIGHTLY_NOTES = 8;
 
 const releaseSchema = v.object({

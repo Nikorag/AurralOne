@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
-import { test } from "vite-plus/test";
-import { feedFromRelease, selectAvailableUpdate } from "../backend/services/updates.ts";
+import { afterAll, test } from "vite-plus/test";
+import { cleanupIsolatedState, setupIsolatedBackend } from "./helpers/backendTestHarness.ts";
+
+const [state, { feedFromRelease, getAvailableUpdate, selectAvailableUpdate }, { dbOps }] =
+  await setupIsolatedBackend(
+    "update-check",
+    () => import("../backend/services/updates.ts"),
+    () => import("../backend/db/helpers/index.ts"),
+  );
+afterAll(() => cleanupIsolatedState(state));
 
 const commits = ["eeeeeee", "ddddddd", "ccccccc", "bbbbbbb"].map((sha) => ({
   sha: `${sha}${"0".repeat(33)}`,
@@ -55,4 +63,16 @@ test("a fork's latest GitHub release becomes the stable update", () => {
   assert.equal(selectAvailableUpdate("1.0.0", forkFeed)?.latest, "1.1.0");
   assert.equal(selectAvailableUpdate("1.1.0", forkFeed), null);
   assert.equal(selectAvailableUpdate("nightly.5+abcdef0", forkFeed), null);
+});
+
+test("a feed cached before the update check followed this repo is ignored", () => {
+  dbOps.setJSONSetting("updates:feed", {
+    stable: {
+      version: "3.1.0",
+      url: "https://github.com/lklynet/aurral/releases/3.1.0",
+      notes: [],
+    },
+    nightly: null,
+  });
+  assert.equal(getAvailableUpdate(), null);
 });
