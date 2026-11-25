@@ -5,6 +5,7 @@ import { db } from "../config/db-sqlite.ts";
 import { createSession } from "../config/session-helpers.ts";
 import { createSystemProvisionedUser, toResolvedUser, parseCsv, pruneExpired } from "./auth.ts";
 import { userOps, userIdentityOps } from "../db/helpers/index.ts";
+import { isOidcConfigComplete, resolveOidcConfig } from "./oidcConfig.ts";
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 const EXCHANGE_TTL_MS = 60 * 1000;
@@ -74,17 +75,18 @@ function transactionCookie(value: string, secure: boolean, maxAge?: number) {
 }
 
 function getRequiredConfig() {
-  const issuer = String(process.env.OIDC_ISSUER || "").trim();
-  const clientId = String(process.env.OIDC_CLIENT_ID || "").trim();
-  const clientSecret = String(process.env.OIDC_CLIENT_SECRET || "").trim();
-  const redirectUri = String(process.env.OIDC_REDIRECT_URI || "").trim();
-  const secretRequired = getTokenEndpointAuthMethod() !== "none";
-  if (!issuer || !clientId || (secretRequired && !clientSecret) || !redirectUri) return null;
-  return { issuer, clientId, clientSecret, redirectUri };
+  const config = resolveOidcConfig();
+  if (!isOidcConfigComplete(config)) return null;
+  return {
+    issuer: config.issuer,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    redirectUri: config.redirectUri,
+  };
 }
 
 export function isOidcEnabled() {
-  if (process.env.OIDC_ENABLED !== "true") return false;
+  if (!resolveOidcConfig().enabled) return false;
   return !!getRequiredConfig();
 }
 
@@ -97,33 +99,14 @@ export function getOidcBootstrapInfo() {
   }
   return {
     oidcEnabled: true,
-    oidcLogoutUrl: process.env.OIDC_LOGOUT_URL || null,
+    oidcLogoutUrl: resolveOidcConfig().logoutUrl || null,
   };
 }
 
-function getScopes() {
-  const scopes = String(process.env.OIDC_SCOPES || "openid profile email")
-    .trim()
-    .replace(/\s+/g, " ");
-  return scopes || "openid profile email";
-}
-
-function getUsernameClaim() {
-  return (
-    String(process.env.OIDC_USERNAME_CLAIM || "preferred_username").trim() || "preferred_username"
-  );
-}
-
-function getGroupsClaim() {
-  return String(process.env.OIDC_GROUPS_CLAIM || "").trim();
-}
-
-function getTokenEndpointAuthMethod() {
-  const method = String(process.env.OIDC_TOKEN_ENDPOINT_AUTH_METHOD || "client_secret_basic")
-    .trim()
-    .toLowerCase();
-  return method || "client_secret_basic";
-}
+const getScopes = () => resolveOidcConfig().scopes;
+const getUsernameClaim = () => resolveOidcConfig().usernameClaim;
+const getGroupsClaim = () => resolveOidcConfig().groupsClaim;
+const getTokenEndpointAuthMethod = () => resolveOidcConfig().tokenEndpointAuthMethod;
 
 function buildClientAuthentication(method: string, clientSecret: string) {
   switch (method) {
@@ -171,19 +154,18 @@ function normalizeGroups(value: unknown) {
 }
 
 export function resolveOidcRole(username: string | null | undefined, claims: OidcClaims = {}) {
-  const adminUsers = parseCsv(process.env.OIDC_ADMIN_USERS).map((u) => u.toLowerCase());
+  const config = resolveOidcConfig();
+  const adminUsers = parseCsv(config.adminUsers).map((u) => u.toLowerCase());
   if (adminUsers.includes(String(username || "").toLowerCase())) return "admin";
 
-  const groupsClaim = getGroupsClaim();
+  const groupsClaim = config.groupsClaim;
   if (groupsClaim) {
     const groups = normalizeGroups(claims[groupsClaim]);
-    const adminGroups = parseCsv(process.env.OIDC_ADMIN_GROUPS).map((g) => g.toLowerCase());
+    const adminGroups = parseCsv(config.adminGroups).map((g) => g.toLowerCase());
     if (groups.some((g) => adminGroups.includes(g))) return "admin";
   }
 
-  return (process.env.OIDC_DEFAULT_ROLE || "user").trim().toLowerCase() === "admin"
-    ? "admin"
-    : "user";
+  return config.defaultRole === "admin" ? "admin" : "user";
 }
 
 export function resolveOidcUsername(claims: OidcClaims = {}) {
@@ -318,7 +300,7 @@ function resolveOidcSessionUser(config: { issuer: string }, claims: OidcClaims) 
 
 function buildCallbackUrl(query: Record<string, string>) {
   const redirectUri = getRequiredConfig()?.redirectUri;
-  if (!redirectUri) throw new Error("OIDC_REDIRECT_URI is required");
+  if (!redirectUri) throw new Error("OIDC redirect URI is required");
   const url = new URL(redirectUri);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
   return url;

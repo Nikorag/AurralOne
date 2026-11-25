@@ -65,10 +65,11 @@ When you add a second user, Aurral turns auto-login off. The setting shows why a
 
 ## Native OIDC
 
-Set `OIDC_ENABLED=true` and register Aurral as a client with your identity provider.
+Register Aurral as a client with your identity provider, then configure it in **Settings > Users > Sign-in > Single sign-on (OIDC)** or with environment variables. Both work together. When an `OIDC_*` environment variable is set, it wins for that field: the field is greyed out in Settings with a note that an environment variable sets it. Fields without a variable use the saved value, then the default. Aurral stores the client secret encrypted and never shows it again. The page only says whether one is saved.
 
-Required variables:
+Required settings, with their environment variables:
 
+- `OIDC_ENABLED=true`: turns on OIDC sign-in. It stays off until the four settings below are all set.
 - `OIDC_ISSUER`: the issuer URL, used for discovery.
 - `OIDC_CLIENT_ID`: the client ID.
 - `OIDC_CLIENT_SECRET`: the client secret. It is not required when `OIDC_TOKEN_ENDPOINT_AUTH_METHOD` is `none`.
@@ -80,6 +81,13 @@ Optional role mapping:
 - `OIDC_ADMIN_USERS`: usernames that get the admin role at sign-in.
 - `OIDC_GROUPS_CLAIM`: the ID-token claim that holds group membership.
 - `OIDC_ADMIN_GROUPS`: the groups in that claim that give the admin role.
+
+### PocketID
+
+1. In PocketID, create an OIDC client for Aurral and mark it as confidential, so that it has a client secret. Set the callback URL to `https://aurral.example.com/sso/callback`.
+2. In Aurral, set the issuer to the PocketID base URL, such as `https://id.example.com`. Enter the client ID, the client secret, and the same redirect URI.
+3. Set the scopes to `openid profile email groups`. To give admins their role from a PocketID group, set the groups claim to `groups` and list the group in the admin groups.
+4. Turn on **Enabled** and save.
 
 See [Environment variables](/admin/environment/#authentication) for every OIDC variable.
 

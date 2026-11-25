@@ -119,6 +119,11 @@ const SETTINGS_SEARCH: Record<SettingsSectionId, Record<string, SettingsSearchEn
   users: {
     Users: "create edit add account permissions roles suspended disabled claim",
     "Sign-in": "SSO OIDC single sign-on login form",
+    "Single sign-on (OIDC)": {
+      item: "oidc",
+      keywords:
+        "OpenID Connect PocketID Authentik Keycloak issuer client ID secret redirect scopes",
+    },
     "Local network auto-login": "LAN bypass authentication",
     "aurral.org": "accounts link publish community playlists turn off",
     Google: { item: "google", keywords: "OAuth sign in client ID secret redirect" },

@@ -34,6 +34,33 @@ Connect slskd, Usenet, qBittorrent, Tidarr, deemix, or download plugins for loss
 
 - **Podcast support.** Follow shows from iTunes, Podcast Index, or any RSS feed, with progress synced between devices, shared episode downloads, OPML import and export, chapters, and new-episode notifications. See [Podcasts](docs/src/content/docs/using/podcasts.mdx).
 - **Transmission client.** Use Transmission as a torrent download source, as an alternative to qBittorrent. It shares the same Prowlarr search and supports both the classic RPC and the Transmission 4.1 JSON-RPC protocols. See [Transmission](docs/src/content/docs/integrations/transmission.mdx).
+- **Single sign-on with OIDC, including PocketID.** Admins can set up OpenID Connect sign-in in the web UI. See [Single sign-on (OIDC)](#single-sign-on-oidc).
+
+## Single sign-on (OIDC)
+
+Aurral signs people in through any OpenID Connect provider. [PocketID](https://pocket-id.org/) works well. Configure it in **Settings > Users > Sign-in > Single sign-on (OIDC)**, or with environment variables. When both set a field, the environment variable wins and the field is greyed out in Settings. The client secret is stored encrypted and is never sent back to the browser.
+
+For PocketID:
+
+1. Create an OIDC client for Aurral in PocketID, marked as confidential, with the callback URL `https://<your-aurral-host>/sso/callback`.
+2. Set the issuer to the PocketID base URL, enter the client ID and secret, and use the same callback URL as the redirect URI.
+3. Use the scopes `openid profile email groups`. To map a PocketID group to the Aurral admin role, set the groups claim to `groups` and list the group as an admin group.
+
+The same setup with environment variables:
+
+```yaml
+environment:
+  - OIDC_ENABLED=true
+  - OIDC_ISSUER=https://id.example.com
+  - OIDC_CLIENT_ID=aurral
+  - OIDC_CLIENT_SECRET=change-me
+  - OIDC_REDIRECT_URI=https://aurral.example.com/sso/callback
+  - OIDC_SCOPES=openid profile email groups
+  - OIDC_GROUPS_CLAIM=groups
+  - OIDC_ADMIN_GROUPS=admins
+```
+
+Optional variables are `OIDC_TOKEN_ENDPOINT_AUTH_METHOD`, `OIDC_USERNAME_CLAIM`, `OIDC_DEFAULT_ROLE`, `OIDC_ADMIN_USERS`, and `OIDC_LOGOUT_URL`. See [Native OIDC](docs/src/content/docs/admin/users.mdx#native-oidc) and [Environment variables](docs/src/content/docs/admin/environment.mdx).
 
 ## Quick start
 

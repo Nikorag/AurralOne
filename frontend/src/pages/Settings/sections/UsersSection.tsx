@@ -18,6 +18,7 @@ import {
 import { GRANULAR_PERMISSIONS } from "../constants";
 import { EditUserPage, NewUserPage, PermissionsGroup, describeUser } from "./users/UserPages";
 import { serverUrl } from "../../../utils/server.ts";
+import { OidcPage, useOidcSettings } from "./users/OidcPage";
 
 type GoogleSettings = NonNullable<SettingsState["integrations"]["google"]>;
 type AutoLoginStatus = NonNullable<
@@ -218,9 +219,15 @@ function UsersGroup({ users }: { users: ReturnType<typeof useSettingsUsers> }) {
 function SignInGroup() {
   const { settings } = useServerSettings();
   const google: GoogleSettings = settings.integrations.google ?? {};
+  const oidc = useOidcSettings().data;
 
   return (
     <SettingsGroup title="Sign-in">
+      <SettingsServiceRow
+        to="users/oidc"
+        name="Single sign-on (OIDC)"
+        status={oidc ? providerStatus(oidc.enabled, oidc.configured) : null}
+      />
       <SettingsServiceRow
         to="users/google"
         name="Google"
@@ -284,6 +291,7 @@ export function UsersSection() {
 
   if (item === "new") return <NewUserPage />;
   if (item === "google") return <GooglePage />;
+  if (item === "oidc") return <OidcPage />;
   if (item === "defaults") return <DefaultPermissionsPage />;
   if (item && /^\d+$/.test(item)) {
     const user = users.data?.find((entry) => String(entry.id) === item && entry.id !== me?.id);

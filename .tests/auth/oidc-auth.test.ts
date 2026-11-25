@@ -21,6 +21,7 @@ const [
   oidcModule,
   { api },
   { default: sso },
+  oidcConfigModule,
 ] = await setupIsolatedBackend(
   "oidc-auth",
   () => import("../../backend/config/db-sqlite.ts"),
@@ -30,6 +31,7 @@ const [
   () => import("../../backend/services/oidcAuth.ts"),
   () => import("../../backend/routes/api.ts"),
   () => import("../../backend/routes/sso.ts"),
+  () => import("../../backend/services/oidcConfig.ts"),
 );
 
 const { dbOps, userOps, userIdentityOps } = dbHelpers;
@@ -44,6 +46,8 @@ const {
   handleOidcCallback,
   startOidcLogin,
 } = oidcModule;
+
+const { invalidateOidcConfigCache, resolveOidcConfig } = oidcConfigModule;
 
 const completeOnboarding = () => dbOps.updateSettings({ onboardingComplete: true });
 
@@ -216,6 +220,7 @@ async function completeOidcLogin(pending: { state: string; cookie: string }) {
 beforeEach(() => {
   resetDatabase(db);
   resetOidcEnv();
+  invalidateOidcConfigCache();
   dbOps.updateSettings({ onboardingComplete: false });
 });
 
@@ -1036,4 +1041,106 @@ test("a suspended user cannot complete an SSO link", async () => {
   } finally {
     await provider.close();
   }
+});
+
+type OidcView = ReturnType<typeof oidcConfigModule.getOidcSettingsView>;
+const readView = async (response: Response) =>
+  v.parse(
+    v.custom<OidcView>(() => true),
+    await response.json(),
+  );
+
+const admin = { id: 1, username: "admin", role: "admin" as const, permissions: {} };
+const putOidc = (app: ReturnType<typeof signedInAs>, body: unknown) =>
+  app.request("/settings/oidc", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+test("UI-saved OIDC settings persist, encrypt the secret, and never return it", async () => {
+  const app = signedInAs(admin).route("/", api);
+  const saved = await putOidc(app, {
+    enabled: true,
+    issuer: "https://id.example.com",
+    clientId: "aurral",
+    clientSecret: "ui-secret",
+    redirectUri: "https://aurral.example.com/sso/callback",
+    groupsClaim: "groups",
+    adminGroups: "admins",
+  });
+  assert.equal(saved.status, 200);
+  const view = await readView(saved);
+  assert.equal(view.clientSecretSet, true);
+  assert.equal(view.configured, true);
+  assert.equal(view.locked.issuer, false);
+  assert.ok(!JSON.stringify(view).includes("ui-secret"));
+  assert.ok(
+    !JSON.stringify(await (await app.request("/settings/oidc")).json()).includes("ui-secret"),
+  );
+
+  const raw = db.prepare("SELECT value FROM settings WHERE key = 'oidc'").get() as {
+    value: string;
+  };
+  assert.ok(!raw.value.includes("ui-secret"));
+
+  invalidateOidcConfigCache();
+  assert.equal(resolveOidcConfig().clientSecret, "ui-secret");
+  assert.equal(isOidcEnabled(), true);
+  assert.equal(isOidcAuthEnabled(), true);
+  assert.equal(resolveOidcConfig().scopes, "openid profile email");
+
+  const kept = await putOidc(app, { clientId: "renamed" });
+  assert.equal((await readView(kept)).clientSecretSet, true);
+  const cleared = await putOidc(app, { clearClientSecret: true });
+  assert.equal((await readView(cleared)).clientSecretSet, false);
+  assert.equal(isOidcEnabled(), false);
+});
+
+test("OIDC environment variables win per field and are reported as locked", async () => {
+  const app = signedInAs(admin).route("/", api);
+  await putOidc(app, {
+    enabled: true,
+    issuer: "https://stored.example.com",
+    clientId: "stored-client",
+    clientSecret: "stored-secret",
+    redirectUri: "https://aurral.example.com/sso/callback",
+    scopes: "openid email",
+  });
+  process.env.OIDC_ISSUER = "https://env.example.com";
+  process.env.OIDC_CLIENT_SECRET = "env-secret";
+
+  const config = resolveOidcConfig();
+  assert.equal(config.issuer, "https://env.example.com");
+  assert.equal(config.clientId, "stored-client");
+  assert.equal(config.clientSecret, "env-secret");
+  assert.equal(config.scopes, "openid email");
+
+  const response = await putOidc(app, {
+    issuer: "https://ignored.example.com",
+    clientSecret: "ignored-secret",
+    clientId: "new-client",
+  });
+  const view = await readView(response);
+  assert.equal(view.issuer, "https://env.example.com");
+  assert.equal(view.locked.issuer, true);
+  assert.equal(view.locked.clientSecret, true);
+  assert.equal(view.locked.clientId, false);
+  assert.equal(view.clientId, "new-client");
+  assert.ok(!JSON.stringify(view).includes("env-secret"));
+
+  delete process.env.OIDC_ISSUER;
+  delete process.env.OIDC_CLIENT_SECRET;
+  assert.equal(resolveOidcConfig().issuer, "https://stored.example.com");
+  assert.equal(resolveOidcConfig().clientSecret, "stored-secret");
+});
+
+test("OIDC settings routes are admin-only and validate input", async () => {
+  const regular = signedInAs({ ...admin, role: "user" }).route("/", api);
+  assert.equal((await regular.request("/settings/oidc")).status, 403);
+  assert.equal((await putOidc(regular, { enabled: true })).status, 403);
+
+  const app = signedInAs(admin).route("/", api);
+  assert.equal((await putOidc(app, { issuer: "ftp://nope" })).status, 400);
+  assert.equal((await putOidc(app, { tokenEndpointAuthMethod: "bogus" })).status, 400);
 });

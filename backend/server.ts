@@ -8,6 +8,7 @@ dns.setDefaultResultOrder("ipv4first");
 import { app } from "./app.ts";
 import { getEnvApiKey, isProxyAuthEnabled } from "./services/auth.ts";
 import { isOidcEnabled } from "./services/oidcAuth.ts";
+import { resolveOidcConfig } from "./services/oidcConfig.ts";
 import { logger, logUnhandledRejection } from "./services/logger.ts";
 import { websocketService } from "./services/websocketService.ts";
 import { startPlaylistStatusBroadcasts } from "./services/playlists/playlistStatusBroadcaster.ts";
@@ -51,10 +52,10 @@ if (isProxyAuthEnabled() && !process.env.AUTH_PROXY_TRUSTED_IPS) {
   );
 }
 
-if (process.env.OIDC_ENABLED === "true" && !isOidcEnabled()) {
+if (resolveOidcConfig().enabled && !isOidcEnabled()) {
   logger.warn(
     "system",
-    "OIDC_ENABLED is on but OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, or OIDC_REDIRECT_URI is missing.",
+    "OIDC is enabled but the issuer, client ID, client secret, or redirect URI is missing.",
   );
 }
 

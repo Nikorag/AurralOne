@@ -6,6 +6,7 @@ import { dbOps, userOps } from "../db/helpers/index.ts";
 import { createSession, getSessionByToken } from "../config/session-helpers.ts";
 import { hashPassword, verifyPassword, needsRehash } from "./passwordHash.ts";
 import { isPluginApiKey, pluginForApiKey } from "./plugins/pluginStore.ts";
+import { resolveOidcConfig } from "./oidcConfig.ts";
 import type { RequestUser } from "../middleware/requestUser.ts";
 import type { UserPermissions, UserRecord } from "../db/helpers/users.ts";
 
@@ -358,7 +359,7 @@ function resolveApiKeyUser(req: CredentialRequest) {
   return user?.status === "active" ? toResolvedUser(user) : null;
 }
 
-export const isOidcAuthEnabled = () => process.env.OIDC_ENABLED === "true";
+export const isOidcAuthEnabled = () => resolveOidcConfig().enabled;
 
 export const isAuthRequiredByConfig = () => {
   const settings = dbOps.getSettings();
