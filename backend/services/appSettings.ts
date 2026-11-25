@@ -72,6 +72,11 @@ const optionalPriority = (value: unknown) => {
   return Number.isFinite(parsed) ? Math.min(1000, Math.max(1, parsed)) : undefined;
 };
 
+const maskedJellyfinScan = (stored: { url?: string; apiKey?: string } | undefined) => ({
+  url: String(stored?.url || ""),
+  apiKeySet: Boolean(stored?.apiKey),
+});
+
 export function readAppSettings() {
   const settings = dbOps.getSettings();
   if (settings?.integrations?.musicbrainz) {
@@ -94,6 +99,7 @@ export function readAppSettings() {
     integrations: {
       ...(settings.integrations || {}),
       news: getNewsSettings(),
+      jellyfinScan: maskedJellyfinScan(settings.integrations?.jellyfinScan),
       ytdlp: {
         ...(settings.integrations?.ytdlp || {}),
         stagingPath: resolveYtdlpStagingRoot(settings.integrations?.ytdlp?.stagingPath),
@@ -275,7 +281,11 @@ function normalizeIntegrationPatch(
     } else {
       nextJellyfin.url = "";
     }
-    nextJellyfin.apiKey = typeof nextJellyfin.apiKey === "string" ? nextJellyfin.apiKey.trim() : "";
+    const typedKey = typeof jellyfin.apiKey === "string" ? jellyfin.apiKey.trim() : "";
+    const storedKey = String(currentSettings.integrations?.jellyfinScan?.apiKey || "");
+    nextJellyfin.apiKey = jellyfin.clearApiKey === true ? "" : typedKey || storedKey;
+    delete nextJellyfin.apiKeySet;
+    delete nextJellyfin.clearApiKey;
     integrations.jellyfinScan = nextJellyfin;
   }
 
@@ -487,5 +497,13 @@ export async function saveAppSettings(input: v.InferOutput<typeof appSettingsPat
   if (localBypassWasEnabled && reconciled?.security?.localNetworkBypass?.enabled !== true) {
     websocketService.reconcileAuthState();
   }
-  return { settings: reconciled };
+  return {
+    settings: reconciled && {
+      ...reconciled,
+      integrations: {
+        ...reconciled.integrations,
+        jellyfinScan: maskedJellyfinScan(reconciled.integrations?.jellyfinScan),
+      },
+    },
+  };
 }

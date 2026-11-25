@@ -89,7 +89,13 @@ export const normalizeSettings = (savedSettings: SavedSettings) => {
         priority: 20,
         ...(savedSettings.integrations?.sabnzbd || {}),
       },
-      jellyfinScan: { url: "", apiKey: "", ...(savedSettings.integrations?.jellyfinScan || {}) },
+      jellyfinScan: {
+        url: "",
+        apiKeySet: false,
+        apiKey: "",
+        clearApiKey: false,
+        ...(savedSettings.integrations?.jellyfinScan || {}),
+      },
       tidarr: {
         enabled: false,
         url: "",

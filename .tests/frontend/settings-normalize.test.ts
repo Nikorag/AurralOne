@@ -11,7 +11,9 @@ test("normalizing saved settings keeps Google sign-in and an empty metadata URL"
     redirectUri: "https://aurral.example/auth/google/callback",
   };
 
-  const normalized = normalizeSettings({ integrations: { google } });
+  const normalized = normalizeSettings({
+    integrations: { google, jellyfinScan: { url: "", apiKeySet: false } },
+  });
 
   assert.deepEqual(normalized.integrations.google, google);
   assert.equal(normalized.integrations.metadata.baseUrl, "");

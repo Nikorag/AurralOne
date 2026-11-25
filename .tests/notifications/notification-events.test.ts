@@ -303,6 +303,26 @@ test("new tracks queue one Jellyfin scan, and none without a Jellyfin", async ()
   assert.doesNotMatch(jobs[0]?.payload ?? "", /jf-secret|jellyfin\.test/);
 });
 
+test("the settings view never returns the Jellyfin key, and a save without one keeps it", async () => {
+  const { readAppSettings, saveAppSettings } =
+    await import("../../backend/services/appSettings.ts");
+  const saved = await saveAppSettings({
+    integrations: { jellyfinScan: { url: "http://jellyfin.test", apiKey: "jf-secret" } },
+  });
+  assert.doesNotMatch(JSON.stringify(saved), /jf-secret/);
+  const view = JSON.stringify(readAppSettings().integrations.jellyfinScan);
+  assert.equal(view, JSON.stringify({ url: "http://jellyfin.test", apiKeySet: true }));
+
+  await saveAppSettings({
+    integrations: { jellyfinScan: { url: "http://jellyfin.test", apiKey: "", apiKeySet: true } },
+  });
+  assert.equal(dbOps.getSettings().integrations.jellyfinScan?.apiKey, "jf-secret");
+  assert.equal(dbOps.getSettings().integrations.jellyfinScan?.apiKeySet, undefined);
+
+  await saveAppSettings({ integrations: { jellyfinScan: { url: "", clearApiKey: true } } });
+  assert.deepEqual(readAppSettings().integrations.jellyfinScan, { url: "", apiKeySet: false });
+});
+
 test("a queued Jellyfin scan posts a library refresh with the saved API key", async () => {
   await withCaptureServer(async ({ baseUrl, requests }) => {
     dbOps.updateSettings({ integrations: { jellyfinScan: { url: baseUrl, apiKey: "jf-secret" } } });

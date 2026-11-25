@@ -151,7 +151,11 @@ export default new Hono<AppEnv>()
       if (!urlValidation.valid) return c.json({ error: urlValidation.error }, 400);
       try {
         const { sendJellyfinTest } = await import("../../services/notificationService.ts");
-        await sendJellyfinTest({ url: urlValidation.url, apiKey: target.apiKey });
+        const { dbOps } = await import("../../db/helpers/index.ts");
+        await sendJellyfinTest({
+          url: urlValidation.url,
+          apiKey: target.apiKey || dbOps.getSettings().integrations?.jellyfinScan?.apiKey,
+        });
         return c.json({ success: true, message: "Jellyfin accepted the API key" }, 200);
       } catch (error) {
         const failure = asAppError(error);

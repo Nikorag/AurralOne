@@ -282,7 +282,9 @@ function JellyfinDetail() {
   const route = useSettingsRoute();
   const saved = settings.integrations.jellyfinScan;
   const [url, setUrl] = useState(saved.url ?? "");
-  const [apiKey, setApiKey] = useState(saved.apiKey ?? "");
+  const [apiKey, setApiKey] = useState("");
+  const [clearKey, setClearKey] = useState(false);
+  const keySet = saved.apiKeySet && !clearKey;
   const draft = { url: url.trim(), apiKey: apiKey.trim() };
   const test = useTest(
     () => parseResponse(downloadClientSettingsClient.jellyfin.test.$post({ json: draft })),
@@ -291,18 +293,23 @@ function JellyfinDetail() {
     "Jellyfin",
   );
 
-  const save = (next: { url: string; apiKey: string }) =>
-    updateSettings({
-      ...settings,
-      integrations: { ...settings.integrations, jellyfinScan: next },
-    });
-
   return (
     <SettingsPage title="Jellyfin" back="Notifications">
       <form
         onSubmit={(event: FormEvent<HTMLFormElement>) => {
           event.preventDefault();
-          save(draft);
+          updateSettings({
+            ...settings,
+            integrations: {
+              ...settings.integrations,
+              jellyfinScan: {
+                ...saved,
+                url: draft.url,
+                apiKey: draft.apiKey,
+                clearApiKey: clearKey,
+              },
+            },
+          });
           route.back();
         }}
       >
@@ -328,13 +335,28 @@ function JellyfinDetail() {
             <SettingsInput
               id="jellyfin-api-key"
               type="password"
+              placeholder={keySet ? "Saved" : ""}
               autoComplete="off"
               value={apiKey}
               onChange={(event) => {
                 test.reset();
+                setClearKey(false);
                 setApiKey(event.target.value);
               }}
             />
+            {saved.apiKeySet && !clearKey ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  test.reset();
+                  setApiKey("");
+                  setClearKey(true);
+                }}
+              >
+                Clear saved key
+              </button>
+            ) : null}
           </SettingsRow>
           <SettingsActions status={test.status}>
             <button type="submit" className="btn btn-primary btn-sm">
@@ -344,7 +366,7 @@ function JellyfinDetail() {
               type="button"
               className="btn btn-secondary btn-sm"
               onClick={test.run}
-              disabled={test.testing || !draft.url || !draft.apiKey}
+              disabled={test.testing || !draft.url || !(draft.apiKey || keySet)}
             >
               {test.testing ? <DotLoader size="xs" label={null} /> : null}
               Test
