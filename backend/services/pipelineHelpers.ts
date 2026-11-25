@@ -10,7 +10,6 @@ import {
 import { recordRequestGroupDownloaded } from "./aurralHistoryRequests.ts";
 import { emitPluginEvent } from "./plugins/pluginEvents.ts";
 import { scheduleLibraryScan } from "./libraryScanWorker.ts";
-import { requestJellyfinScan } from "./jellyfinScan.ts";
 import { playlistManager } from "./playlists/playlistManager.ts";
 
 // Fields of a search in progress; a new search or a download clears them.
@@ -192,7 +191,6 @@ export async function recordPipelineJobSuccess({
       includeReadOnly: false,
       changedPaths: [committedFinalPath],
     });
-    requestJellyfinScan();
   }
 
   if (onSuccess) await onSuccess();

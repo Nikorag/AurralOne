@@ -41,6 +41,7 @@ const INTEGRATION_KEYS = [
   "nzbget",
   "sabnzbd",
   "tidarr",
+  "jellyfinScan",
   "qbittorrent",
   "transmission",
   "ytdlp",
@@ -261,6 +262,21 @@ function normalizeIntegrationPatch(
     nextTidarr.priority = clampedInteger(nextTidarr.priority, 1, 1000, 20);
     nextTidarr.albumPriority = optionalPriority(nextTidarr.albumPriority);
     integrations.tidarr = nextTidarr;
+  }
+
+  const jellyfin = asObject(integrations.jellyfinScan);
+  if (jellyfin) {
+    const nextJellyfin = { ...(currentSettings.integrations?.jellyfinScan || {}), ...jellyfin };
+    const trimmedUrl = String(nextJellyfin.url || "").trim();
+    if (trimmedUrl) {
+      const urlValidation = validateExternalUrl(trimmedUrl);
+      if (!urlValidation.valid) return `Invalid Jellyfin URL: ${urlValidation.error}`;
+      nextJellyfin.url = urlValidation.url.replace(/\/+$/, "");
+    } else {
+      nextJellyfin.url = "";
+    }
+    nextJellyfin.apiKey = typeof nextJellyfin.apiKey === "string" ? nextJellyfin.apiKey.trim() : "";
+    integrations.jellyfinScan = nextJellyfin;
   }
 
   const deemix = asObject(integrations.deemix);

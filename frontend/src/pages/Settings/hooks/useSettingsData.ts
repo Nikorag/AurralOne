@@ -80,6 +80,7 @@ const defaultSettings = {
       category: "aurral",
       priority: 20,
     },
+    jellyfinScan: { url: "", apiKey: "" },
     tidarr: {
       enabled: false,
       url: "",

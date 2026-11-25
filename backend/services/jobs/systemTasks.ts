@@ -437,15 +437,6 @@ const SYSTEM_TASKS = {
       });
     },
   },
-  "jellyfin-library-scan": {
-    queue: "system",
-    label: "Jellyfin library scan",
-    description: "Asks a connected Jellyfin to scan after new music lands in the Library.",
-    async run() {
-      const { refreshJellyfinLibraries } = await import("../historyServers.ts");
-      await refreshJellyfinLibraries();
-    },
-  },
   "read-only-folder-release": {
     queue: "system",
     label: "Read-only folder removed",
