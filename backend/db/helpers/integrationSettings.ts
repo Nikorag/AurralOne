@@ -93,6 +93,7 @@ export const integrationSettingsSchema = v.looseObject({
     priority: count,
     albumPriority: count,
   }),
+  jellyfinScan: service({ url: text, apiKey: text }),
   ytdlp: service({ enabled: flag, priority: count, stagingPath: text, cookiesPath: text }),
   deemix: service({
     enabled: flag,

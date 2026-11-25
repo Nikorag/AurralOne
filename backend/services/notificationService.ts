@@ -56,7 +56,34 @@ export const queuedNotificationSchema = v.variant("kind", [
     webhook: webhookSchema,
     vars: v.record(v.string(), v.string()),
   }),
+  v.object({ kind: v.literal("jellyfin") }),
 ]);
+
+const jellyfinHeaders = (apiKey: string) => ({
+  Authorization: `MediaBrowser Client="Aurral", Device="Aurral", DeviceId="aurral", Version="1", Token="${apiKey}"`,
+});
+
+const JELLYFIN_SCAN_DELAY_MS = 30_000;
+
+async function jellyfinRequest(
+  method: "GET" | "POST",
+  path: string,
+  { url, apiKey }: { url?: string | null; apiKey?: string | null },
+) {
+  const base = (url || "").trim().replace(/\/+$/, "");
+  const key = (apiKey || "").trim();
+  if (!base || !key) throw new Error("Enter the Jellyfin URL and API key");
+  try {
+    await http.request(`${base}${path}`, {
+      method,
+      timeoutMs: 30000,
+      headers: jellyfinHeaders(key),
+    });
+  } catch (error) {
+    logDeliveryFailure("jellyfin", null, base, error);
+    throw error;
+  }
+}
 
 function logDeliveryFailure(
   kind: string,
@@ -145,6 +172,12 @@ export async function deliverQueuedNotification(
     dispatchPluginEvent(payload);
     return;
   }
+  if (payload.kind === "jellyfin") {
+    const jellyfin = dbOps.getSettings().integrations?.jellyfinScan;
+    if (jellyfin?.url && jellyfin.apiKey)
+      await jellyfinRequest("POST", "/Library/Refresh", jellyfin);
+    return;
+  }
   await sendWebhookDirect(
     withHeaderValues(payload.webhook, decryptWithKey),
     payload.event,
@@ -163,6 +196,13 @@ function notify(event: NotificationEvent, { title, message, vars = {}, plugin }:
   try {
     const { integrations } = dbOps.getSettings();
     if (plugin) emitPluginEvent("notification", { title, message, ...plugin });
+    const jellyfin = integrations?.jellyfinScan;
+    if (event === "notifyTrackAdded" && jellyfin?.url && jellyfin.apiKey) {
+      notificationQueue.enqueue(
+        { kind: "jellyfin" },
+        { delayMs: JELLYFIN_SCAN_DELAY_MS, mergeInto: () => ({ kind: "jellyfin" }) },
+      );
+    }
     const resolved = Object.fromEntries(
       Object.entries({ ...vars, title, message, event }).filter(([, value]) => value),
     );
@@ -199,6 +239,10 @@ const WEBHOOK_TEST_VARS = Object.freeze({
 
 export async function sendWebhookTest(webhook: WebhookTarget) {
   await sendWebhookDirect(webhook, "webhookTest", WEBHOOK_TEST_VARS);
+}
+
+export async function sendJellyfinTest(target: { url?: string | null; apiKey?: string | null }) {
+  await jellyfinRequest("GET", "/System/Info", target);
 }
 
 function actorVars(user: RequestActor | null | undefined) {

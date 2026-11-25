@@ -70,6 +70,8 @@ const webhookTarget = v.object({
   body: v.optional(v.nullable(v.string())),
 });
 
+const jellyfinTarget = v.object({ url: v.optional(v.string()), apiKey: v.optional(v.string()) });
+
 export default new Hono<AppEnv>()
   .basePath("/settings")
   .get("/download-clients", requireAuth, requireAdmin, (c) =>
@@ -137,6 +139,32 @@ export default new Hono<AppEnv>()
     clientTestResponse(c, "yt-dlp", () =>
       getDownloadClient("ytdlp").testConnection({ force: true }),
     ),
+  )
+  .post(
+    "/jellyfin/test",
+    requireAuth,
+    requireAdmin,
+    validate("json", jellyfinTarget),
+    async (c) => {
+      const target = c.req.valid("json");
+      const urlValidation = validateExternalUrl(target.url);
+      if (!urlValidation.valid) return c.json({ error: urlValidation.error }, 400);
+      try {
+        const { sendJellyfinTest } = await import("../../services/notificationService.ts");
+        const { dbOps } = await import("../../db/helpers/index.ts");
+        await sendJellyfinTest({
+          url: urlValidation.url,
+          apiKey: target.apiKey || dbOps.getSettings().integrations?.jellyfinScan?.apiKey,
+        });
+        return c.json({ success: true, message: "Jellyfin accepted the API key" }, 200);
+      } catch (error) {
+        const failure = asAppError(error);
+        return c.json(
+          { error: "Jellyfin test failed", message: notificationFailureMessage(failure) },
+          notificationFailureStatus(failure),
+        );
+      }
+    },
   )
   .post("/webhook/test", requireAuth, requireAdmin, validate("json", webhookTarget), async (c) => {
     const webhook = c.req.valid("json");

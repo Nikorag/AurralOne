@@ -280,6 +280,67 @@ test("notifyTrackAdded hands webhooks the file and its folder", async () => {
   });
 });
 
+const jellyfinJobs = () =>
+  db
+    .prepare<[], { payload: string }>(
+      "SELECT payload FROM jobs WHERE payload LIKE '%\"jellyfin\"%'",
+    )
+    .all();
+
+test("new tracks queue one Jellyfin scan, and none without a Jellyfin", async () => {
+  const track = { trackName: "Alison", filePath: "/music/Slowdive/Souvlaki/01 - Alison.flac" };
+  notifyTrackAdded(track);
+  assert.equal(jellyfinJobs().length, 0);
+
+  dbOps.updateSettings({
+    integrations: { jellyfinScan: { url: "http://jellyfin.test", apiKey: "jf-secret" } },
+  });
+  notifyTrackAdded(track);
+  notifyTrackAdded(track);
+  notifyArtistAdded({ artistName: "Slowdive" });
+  const jobs = jellyfinJobs();
+  assert.equal(jobs.length, 1);
+  assert.doesNotMatch(jobs[0]?.payload ?? "", /jf-secret|jellyfin\.test/);
+});
+
+test("the settings view never returns the Jellyfin key, and a save without one keeps it", async () => {
+  const { readAppSettings, saveAppSettings } =
+    await import("../../backend/services/appSettings.ts");
+  const saved = await saveAppSettings({
+    integrations: { jellyfinScan: { url: "http://jellyfin.test", apiKey: "jf-secret" } },
+  });
+  assert.doesNotMatch(JSON.stringify(saved), /jf-secret/);
+  const view = JSON.stringify(readAppSettings().integrations.jellyfinScan);
+  assert.equal(view, JSON.stringify({ url: "http://jellyfin.test", apiKeySet: true }));
+
+  await saveAppSettings({
+    integrations: { jellyfinScan: { url: "http://jellyfin.test", apiKey: "", apiKeySet: true } },
+  });
+  assert.equal(dbOps.getSettings().integrations.jellyfinScan?.apiKey, "jf-secret");
+  assert.equal(dbOps.getSettings().integrations.jellyfinScan?.apiKeySet, undefined);
+
+  await saveAppSettings({ integrations: { jellyfinScan: { url: "", clearApiKey: true } } });
+  assert.deepEqual(readAppSettings().integrations.jellyfinScan, { url: "", apiKeySet: false });
+});
+
+test("a queued Jellyfin scan posts a library refresh with the saved API key", async () => {
+  await withCaptureServer(async ({ baseUrl, requests }) => {
+    dbOps.updateSettings({ integrations: { jellyfinScan: { url: baseUrl, apiKey: "jf-secret" } } });
+    await deliverQueuedNotification({ kind: "jellyfin" });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.method, "POST");
+    assert.equal(requests[0]?.url, "/Library/Refresh");
+    assert.match(String(requests[0]?.headers.authorization), /Token="jf-secret"/);
+    const stored = String(
+      db
+        .prepare<[], { value: string }>("SELECT value FROM settings WHERE key = 'integrations'")
+        .get()?.value,
+    );
+    assert.match(stored, /AURRAL_ENC:/);
+    assert.doesNotMatch(stored, /jf-secret/);
+  });
+});
+
 test("notifyRequestAvailable omits actor text when username is missing", async () => {
   await withCaptureServer(async ({ baseUrl, waitFor }) => {
     const settings = dbOps.getSettings();

@@ -74,6 +74,14 @@ Open the webhook and select **Send test**. Aurral sends the current URL, body, a
 | `$username`   | `webhook-test-user`                                  |
 | `$userId`     | `webhook-test-user`                                  |
 
+## Jellyfin library scan
+
+Aurral can ask Jellyfin to scan when new music lands, so you don't wait for Jellyfin's scheduled scan. In Jellyfin, open **API Keys** in the dashboard and create a key for Aurral. In Aurral, open **Settings > Notifications > Media servers > Jellyfin**, enter the **Server URL** and **API key**, and select **Save**. Select **Test** to check the key first. Leave the URL blank to turn it off.
+
+Each **Track added** event starts a short timer. Aurral asks Jellyfin to scan once, about 30 seconds after the last track, so an album or a flow causes one scan. If Jellyfin can't be reached, Aurral retries a few times and then logs the failure. Downloads never wait for it. Aurral stores the API key encrypted.
+
+This is separate from the Jellyfin connection in **Settings > Listening**, which imports plays.
+
 ## Use beets alongside Aurral
 
 Aurral keeps track of the files in its Library folder, so beets can fix tags but must not move or rename files. Set beets to write tags in place:

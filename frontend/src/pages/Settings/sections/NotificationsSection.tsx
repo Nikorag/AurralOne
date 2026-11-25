@@ -277,6 +277,110 @@ function WebhookDetail({ index }: { index: number | null }) {
   );
 }
 
+function JellyfinDetail() {
+  const { settings, updateSettings } = useServerSettings();
+  const route = useSettingsRoute();
+  const saved = settings.integrations.jellyfinScan;
+  const [url, setUrl] = useState(saved.url ?? "");
+  const [apiKey, setApiKey] = useState("");
+  const [clearKey, setClearKey] = useState(false);
+  const keySet = saved.apiKeySet && !clearKey;
+  const draft = { url: url.trim(), apiKey: apiKey.trim() };
+  const test = useTest(
+    () => parseResponse(downloadClientSettingsClient.jellyfin.test.$post({ json: draft })),
+    "Jellyfin accepted the API key.",
+    "Test failed. Check the URL and API key, then retry.",
+    "Jellyfin",
+  );
+
+  return (
+    <SettingsPage title="Jellyfin" back="Notifications">
+      <form
+        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          updateSettings({
+            ...settings,
+            integrations: {
+              ...settings.integrations,
+              jellyfinScan: {
+                ...saved,
+                url: draft.url,
+                apiKey: draft.apiKey,
+                clearApiKey: clearKey,
+              },
+            },
+          });
+          route.back();
+        }}
+      >
+        <SettingsGroup>
+          <SettingsRow
+            label="Server URL"
+            htmlFor="jellyfin-url"
+            help="When new music is added to the Library, Aurral asks Jellyfin to scan, once after the last track lands. Leave blank to turn this off."
+          >
+            <SettingsInput
+              id="jellyfin-url"
+              type="url"
+              placeholder="http://jellyfin:8096"
+              autoComplete="off"
+              value={url}
+              onChange={(event) => {
+                test.reset();
+                setUrl(event.target.value);
+              }}
+            />
+          </SettingsRow>
+          <SettingsRow label="API key" htmlFor="jellyfin-api-key">
+            <SettingsInput
+              id="jellyfin-api-key"
+              type="password"
+              placeholder={keySet ? "Saved" : ""}
+              autoComplete="off"
+              value={apiKey}
+              onChange={(event) => {
+                test.reset();
+                setClearKey(false);
+                setApiKey(event.target.value);
+              }}
+            />
+            {saved.apiKeySet && !clearKey ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  test.reset();
+                  setApiKey("");
+                  setClearKey(true);
+                }}
+              >
+                Clear saved key
+              </button>
+            ) : null}
+          </SettingsRow>
+          <SettingsActions status={test.status}>
+            <button type="submit" className="btn btn-primary btn-sm">
+              Save
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={test.run}
+              disabled={test.testing || !draft.url || !(draft.apiKey || keySet)}
+            >
+              {test.testing ? <DotLoader size="xs" label={null} /> : null}
+              Test
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={route.back}>
+              Cancel
+            </button>
+          </SettingsActions>
+        </SettingsGroup>
+      </form>
+    </SettingsPage>
+  );
+}
+
 function InboxGroup() {
   const { settings, updateSettings } = useServerSettings();
   const { inbox } = settings;
@@ -305,11 +409,23 @@ export function NotificationsSection() {
   const { webhooks } = settings.integrations;
   const webhookItem = resolveWebhookItem(webhooks, item);
 
+  if (item === "jellyfin") return <JellyfinDetail key={item} />;
   if (webhookItem) return <WebhookDetail key={item} index={webhookItem.index} />;
 
   return (
     <SettingsPage title="Notifications">
       <InboxGroup />
+      <SettingsGroup title="Media servers">
+        <SettingsServiceRow
+          to="notifications/jellyfin"
+          name="Jellyfin"
+          detail={
+            settings.integrations.jellyfinScan.url
+              ? webhookName(settings.integrations.jellyfinScan.url)
+              : "Not connected"
+          }
+        />
+      </SettingsGroup>
       <SettingsGroup
         title="Webhooks"
         actions={

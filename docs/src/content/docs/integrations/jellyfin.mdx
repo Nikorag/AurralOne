@@ -3,14 +3,14 @@ title: Jellyfin
 description: Point Jellyfin at the Aurral Library folder and its playlist files, and import Jellyfin plays.
 ---
 
-Jellyfin is optional. Jellyfin scans the Library folder and imports the playlist files that Aurral writes for every flow and static playlist. Aurral does not connect to Jellyfin for this. To bring your Jellyfin plays into Wrapped and recommendations, connect it in **Settings > Listening**.
+Jellyfin is optional. Jellyfin scans the Library folder and imports the playlist files that Aurral writes for every flow and static playlist. Aurral can also ask Jellyfin to scan when new music lands, set up under **Settings > Notifications**. To bring your Jellyfin plays into Wrapped and recommendations, connect it in **Settings > Listening**. The two are separate.
 
 ## Setup
 
 1. Mount the same media root in Aurral and Jellyfin, at the same container path. See [Filesystem and mounts](/getting-started/storage/).
 2. In Jellyfin, add the Library folder, for example `/data/downloads/aurral`, to a music library. It can be its own library or an extra folder in your existing one.
 3. If playlists use tracks from a read-only folder, such as `/data/music`, make sure that folder is in a Jellyfin music library too.
-4. Turn on **Enable real time monitoring** for the library, so Jellyfin picks up changes without a scheduled scan.
+4. To have Jellyfin pick up new music, either turn on **Enable real time monitoring** for the library, or have Aurral ask Jellyfin to scan with the [Jellyfin library scan](/integrations/notifications/#jellyfin-library-scan) notification.
 
 ## Playlists
 
