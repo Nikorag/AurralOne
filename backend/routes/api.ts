@@ -43,6 +43,7 @@ import people from "./people.ts";
 import shareLinks from "./shareLinks.ts";
 import starPrompt from "./starPrompt.ts";
 import settingsDownloadClients from "./settings/downloadClients.ts";
+import settingsOidc from "./settings/oidc.ts";
 import updates from "./updates.ts";
 import users from "./users.ts";
 import visualizer from "./visualizer.ts";
@@ -75,6 +76,7 @@ export const api = new Hono<AppEnv>()
   .route("/", deezer)
   .route("/", settings)
   .route("/", settingsDownloadClients)
+  .route("/", settingsOidc)
   .route("/", updates)
   .route("/", backup)
   .route("/", connect)

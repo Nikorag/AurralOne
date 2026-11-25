@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { AppEnv } from "./requestUser.ts";
+import { getOidcCspDomain } from "../services/oidcConfig.ts";
 
 const isPublic = (c: Context<AppEnv>) => {
   const { method, path } = c.req;
@@ -44,16 +45,8 @@ export const corsHeaders = createMiddleware<AppEnv>(async (c, next) => {
   return c.body(null, 204);
 });
 
-const connectSources = [
-  "'self'",
-  "ws:",
-  "wss:",
-  process.env.AUTH_PROXY_DOMAIN,
-  process.env.OIDC_DOMAIN,
-].filter(Boolean);
-
-const headers = Object.entries({
-  "Content-Security-Policy": [
+const buildCsp = (oidcDomain: string) =>
+  [
     "default-src 'self'",
     "base-uri 'self'",
     "font-src 'self' data:",
@@ -63,10 +56,16 @@ const headers = Object.entries({
     "script-src 'self'",
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
-    `connect-src ${connectSources.join(" ")}`,
+    `connect-src ${["'self'", "ws:", "wss:", process.env.AUTH_PROXY_DOMAIN, oidcDomain]
+      .filter(Boolean)
+      .join(" ")}`,
     "media-src 'self' data: blob: https:",
     "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
-  ].join(";"),
+  ].join(";");
+
+let csp = { domain: "", value: buildCsp("") };
+
+const headers = Object.entries({
   "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
   "Origin-Agent-Cluster": "?1",
   "Referrer-Policy": "no-referrer",
@@ -80,6 +79,9 @@ const headers = Object.entries({
 });
 
 export const securityHeaders = createMiddleware<AppEnv>(async (c, next) => {
+  const domain = getOidcCspDomain();
+  if (csp.domain !== domain) csp = { domain, value: buildCsp(domain) };
+  c.res.headers.set("Content-Security-Policy", csp.value);
   for (const [name, value] of headers) c.res.headers.set(name, value);
   c.res.headers.set("Cross-Origin-Resource-Policy", isPublic(c) ? "cross-origin" : "same-origin");
   await next();
