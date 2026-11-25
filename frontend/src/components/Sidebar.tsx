@@ -148,8 +148,10 @@ function Sidebar({ mode, width = 208, onToggle, onRestorePlayer }: SidebarProps)
           <Menu aria-hidden="true" />
         </TooltipButton>
         <RouteLink to="/" className="sidebar-logo-link">
-          <img src={logo.src} alt="Aurral logo" className={`sidebar-logo${logo.className}`} />
-          <span className="sidebar-title">Aurral</span>
+          <img src={logo.src} alt="Aurral One logo" className={`sidebar-logo${logo.className}`} />
+          <span className="sidebar-title">
+            Aurral<span className="sidebar-title-accent">One</span>
+          </span>
         </RouteLink>
       </div>
       <aside
