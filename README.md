@@ -1,15 +1,12 @@
 <div align="center" width="100%">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/readme.svg" />
-    <img src="docs/src/assets/readme-dark.svg" width="600" alt="Aurral" />
-  </picture>
+  <img src="docs/src/assets/aurralone-logo.png" width="600" alt="Aurral One" />
 </div>
 
 <p align="center">
   <a href="https://github.com/Nikorag/AurralOne/releases"><img src="https://img.shields.io/github/v/release/Nikorag/AurralOne" alt="Release" /></a>
 </p>
 
-<p align="center"><b>AurralOne</b> is a fork of <a href="https://github.com/lklynet/aurral">Aurral</a> that adds podcasts. Everything else is Aurral: one container, zero API keys, and you own every file.</p>
+<p align="center"><b>AurralOne</b> is a fork of <a href="https://github.com/lklynet/aurral">Aurral</a> that adds podcasts and a Transmission download client. Everything else is Aurral: one container, zero API keys, and you own every file.</p>
 
 <p align="center">
   <a href="https://docs.aurral.org/">Upstream docs</a> ·
@@ -32,6 +29,11 @@
 - **Plugins** add download sources, imports, and actions when you want them.
 
 Connect slskd, Usenet, qBittorrent, Tidarr, deemix, or download plugins for lossless music, with built-in yt-dlp ready as a fallback out of the box. Every integration is optional. [Read the docs](https://docs.aurral.org/) for the full tour, or check the [FAQ](https://docs.aurral.org/faq/).
+
+## New features in Aurral One
+
+- **Podcast support.** Follow shows from iTunes, Podcast Index, or any RSS feed, with progress synced between devices, shared episode downloads, OPML import and export, chapters, and new-episode notifications. See [Podcasts](docs/src/content/docs/using/podcasts.mdx).
+- **Transmission client.** Use Transmission as a torrent download source, as an alternative to qBittorrent. It shares the same Prowlarr search and supports both the classic RPC and the Transmission 4.1 JSON-RPC protocols. See [Transmission](docs/src/content/docs/integrations/transmission.mdx).
 
 ## Quick start
 
