@@ -160,6 +160,17 @@ export function newEpisodes(userId: number, { days = 30, limit = 20 } = {}) {
     .map(toEpisode);
 }
 
+export function newestEpisodes(userId: number, limit: number) {
+  return db
+    .prepare<{ user: number; limit: number }, EpisodeRow>(
+      `${SELECT}
+       WHERE e.podcast_id IN (SELECT podcast_id FROM podcast_follows WHERE user_id = @user)
+       ORDER BY e.published_at DESC, e.id DESC LIMIT @limit`,
+    )
+    .all({ user: userId, limit })
+    .map(toEpisode);
+}
+
 export function listeningHistory(userId: number, { limit = 30, offset = 0 } = {}) {
   const rows = db
     .prepare<{ user: number; limit: number; offset: number }, EpisodeRow>(

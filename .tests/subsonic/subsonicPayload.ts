@@ -15,6 +15,7 @@ export type SubsonicEntry = {
   roles: string[];
   [key: string]: unknown;
 };
+type PodcastEpisode = SubsonicEntry & { channelId: string; status: string };
 type SubsonicPlaylist = SubsonicEntry & { changed: string; entry: SubsonicEntry[] };
 type Starred = { song: SubsonicEntry[]; artist: SubsonicEntry[]; album: SubsonicEntry[] };
 export type SubsonicPayload = {
@@ -55,6 +56,8 @@ export type SubsonicPayload = {
   artistInfo: { similarArtist: SubsonicEntry[] };
   artistInfo2: { similarArtist: SubsonicEntry[]; largeImageUrl: string };
   lyrics: { value: string };
+  podcasts: { channel?: { id: string; episode?: PodcastEpisode[] }[] };
+  newestPodcasts: { episode?: PodcastEpisode[] };
   lyricsList: {
     structuredLyrics: {
       lang: string;
