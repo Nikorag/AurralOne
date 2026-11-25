@@ -2092,6 +2092,10 @@ textarea:disabled {
   font-weight: 600;
 }
 
+.sidebar-title-accent {
+  color: var(--aurral-accent);
+}
+
 .sidebar-body {
   position: relative;
   z-index: var(--aurral-z-raised);
