@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: upstream-sync
@@ -54,17 +53,16 @@ jobs:
             git merge --abort
           fi
 
-      - name: Open or update the pull request
+      - name: Push to main
         if: steps.merge.outputs.state == 'clean'
         env:
-          GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          git push --force origin "${BRANCH}"
-          if [ "$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${BRANCH}" --state open --json number --jq length)" = "0" ]; then
-            gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head "${BRANCH}" \
-              --title "chore: sync upstream" \
-              --body "Merges ${UPSTREAM} main. Merge this with a merge commit, not a squash, so the next sync only brings in new changes."
+          if [ -z "${SYNC_TOKEN}" ]; then
+            echo "::error title=SYNC_TOKEN is not set::Pushes made with the default token do not trigger other workflows."
+            exit 1
           fi
+          git push origin "${BRANCH}:main"
 
       - name: Report conflicts
         if: steps.merge.outputs.state == 'conflict'
