@@ -60,8 +60,8 @@ jobs:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
         run: |
           git push --force origin "${BRANCH}"
-          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq length)" = "0" ]; then
-            gh pr create --base main --head "${BRANCH}" \
+          if [ "$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${BRANCH}" --state open --json number --jq length)" = "0" ]; then
+            gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head "${BRANCH}" \
               --title "chore: sync upstream" \
               --body "Merges ${UPSTREAM} main. Merge this with a merge commit, not a squash, so the next sync only brings in new changes."
           fi
