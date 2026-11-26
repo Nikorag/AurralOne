@@ -256,6 +256,7 @@ export function groupAlbumGrabRequests(requests: ActivityRequest[]) {
       ...first,
       id,
       jobId: null,
+      jobRemoved: false,
       kind: "album_download",
       source: "aurral",
       trackName: null,
